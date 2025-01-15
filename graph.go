@@ -2,7 +2,9 @@ package main
 
 import (
 	"bufio"
+	"fmt"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -17,15 +19,17 @@ type Community struct {
 }
 
 type Vertex struct {
+	index int
 	Edges map[int]*Vertex
+	CC    float32
 }
 
 func (graph *Graph) AddEdge(srcKey, destKey int) {
 	if _, ok := graph.Vertices[srcKey]; !ok {
-		graph.Vertices[srcKey] = &Vertex{make(map[int]*Vertex)}
+		graph.Vertices[srcKey] = &Vertex{len(graph.Vertices) + 1, make(map[int]*Vertex), -1}
 	}
 	if _, ok := graph.Vertices[destKey]; !ok {
-		graph.Vertices[destKey] = &Vertex{make(map[int]*Vertex)}
+		graph.Vertices[destKey] = &Vertex{len(graph.Vertices) + 1, make(map[int]*Vertex), -1}
 	}
 
 	graph.Vertices[srcKey].Edges[destKey] = graph.Vertices[destKey]
@@ -47,7 +51,7 @@ func (graph *Graph) CountTrianglesVertices(node int) int {
 			}
 		}
 	}
-	return count / 2
+	return count
 }
 
 func (graph *Graph) CountTrianglesEdge(src, dest int) int {
@@ -71,13 +75,47 @@ func (graph *Graph) RemoveEdgesWithoutTriangles() {
 	for src, vertex := range graph.Vertices {
 		for dest := range vertex.Edges {
 			if src < dest {
+				// TODO : Optimiser ça (ne pas compter tout les triangles mais break des qu'il y en a 1)
 				if graph.CountTrianglesEdge(src, dest) == 0 {
 					delete(graph.Vertices[src].Edges, dest)
 					delete(graph.Vertices[dest].Edges, src)
 				}
+				if graph.Vertices[src].Edges == nil {
+					delete(graph.Vertices, src)
+				}
+				if graph.Vertices[dest].Edges == nil {
+					delete(graph.Vertices, dest)
+				}
+
 			}
 		}
 	}
+}
+
+func (graph *Graph) ClusteringCoeficient(node int) float32 {
+	degree := len(graph.Vertices[node].Edges)
+	if degree < 2 {
+		return 0
+	}
+
+	triangles := graph.CountTrianglesVertices(node)
+	return 2 * float32(triangles) / float32(degree*(degree-1))
+}
+
+func (graph *Graph) SortVerticesByCC() []*Vertex {
+	vertices := make([]*Vertex, len(graph.Vertices))
+	i := 0
+	for _, vertex := range graph.Vertices {
+		vertices[i] = vertex
+		i++
+	}
+	sort.Slice(vertices, func(i, j int) bool {
+		if vertices[i].CC == vertices[j].CC {
+			return len(vertices[i].Edges) > len(vertices[j].Edges)
+		}
+		return vertices[i].CC > vertices[j].CC
+	})
+	return vertices
 }
 
 func (graph *Graph) WccCommunity(node int, c Community) float32 {
@@ -112,7 +150,71 @@ func NewGraphFromFile(filePath string) *Graph {
 }
 
 func main() {
-	filePath := "graph.txt"
+	filePath := "com-amazon.ungraph.txt"
 	graph := NewGraphFromFile(filePath)
 	graph.RemoveEdgesWithoutTriangles()
+
+	// ######################################################################################################################
+	// Tests with http://snap.stanford.edu/data/index.html#communities datasets
+	// ######################################################################################################################
+	/* sumTriangles := 0
+	for key := range graph.Vertices {
+		sumTriangles += graph.CountTrianglesVertices(key)
+	}
+	fmt.Println("Triangles : ", sumTriangles/3)
+	Supposed to be 667129 for com-amazon.ungraph.txt and is 667129
+	*/
+	// ######################################################################################################################
+	/* for key, vertex := range graph.Vertices {
+		vertex.CC = graph.ClusteringCoeficient(key)
+	}
+	avgCC := float32(0)
+	for _, vertex := range graph.Vertices {
+		avgCC += vertex.CC
+	}
+	avgCC /= float32(len(graph.Vertices))
+	fmt.Println("Average Clustering Coeficient : ", avgCC)
+	*/
+	/* Average Clustering Coeficient :  0.3967 for com-amazon.ungraph.txt and is 0.3967 if you don't remove edges without triangles
+	 */
+	// ######################################################################################################################
+
+	SortedVerticesByCC := graph.SortVerticesByCC()
+
+	VisitedVertices := make(map[int]bool)
+
+	for _, vertex := range SortedVerticesByCC {
+		if VisitedVertices[vertex.index] {
+			continue
+		}
+		community := &Community{make(map[int]*Vertex)}
+		community.Vertices[vertex.index] = vertex
+		VisitedVertices[vertex.index] = true
+
+		for dest := range vertex.Edges {
+			if !VisitedVertices[dest] {
+				community.Vertices[dest] = graph.Vertices[dest]
+				VisitedVertices[dest] = true
+			}
+		}
+
+		graph.Communities = append(graph.Communities, community)
+	}
+
+	fmt.Println("Communities : ", len(graph.Communities))
+
+	// for _, community := range graph.Communities {
+	// 	fmt.Println("Community : ")
+	// 	for key := range community.Vertices {
+	// 		fmt.Print(key, " ")
+	// 	}
+	// 	fmt.Println()
+	// }
+
+	// for key, vertex := range graph.Vertices {
+	// 	for dest := range vertex.Edges {
+	// 		fmt.Println(key, "<-->", dest)
+	// 	}
+	// }
+
 }
