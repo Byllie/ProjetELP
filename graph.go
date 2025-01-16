@@ -41,17 +41,40 @@ func (graph *Graph) CountTrianglesVertices(node int) int {
 		return 0
 	}
 
-	count := 0
+	countForGraph := 0
 	neighbors := graph.Vertices[node].Edges
 
 	for neighbor1 := range neighbors {
 		for neighbor2 := range neighbors {
 			if neighbor1 < neighbor2 && graph.Vertices[neighbor1].Edges[neighbor2] != nil {
-				count++
+				countForGraph++
 			}
 		}
 	}
-	return count
+	return countForGraph
+}
+
+func (graph *Graph) CountTrianglesVerticesCommunity(node int, c Community) int {
+	/* Renvoit le nombre de triangles dans la communauté c */
+	if _, ok := c.Vertices[node]; !ok {
+		return 0
+	}
+
+	countForC := 0
+
+	neighbors := graph.Vertices[node].Edges
+
+	for neighbor1 := range neighbors {
+		for neighbor2 := range neighbors {
+			if neighbor1 < neighbor2 && c.Vertices[neighbor1] != nil && c.Vertices[neighbor1].Edges[neighbor2] != nil {
+				if c.Vertices[neighbor1] != nil || c.Vertices[neighbor2] != nil {
+					countForC++
+				}
+			}
+		}
+	}
+	return countForC
+
 }
 
 func (graph *Graph) CountTrianglesEdge(src, dest int) int {
@@ -68,6 +91,63 @@ func (graph *Graph) CountTrianglesEdge(src, dest int) int {
 			count++
 		}
 	}
+	return count
+}
+
+func (graph *Graph) vt(node int) int {
+	/* vt(x,V) in https://dl-acm-org.docelec.insa-lyon.fr/doi/pdf/10.1145/2566486.2568010 */
+
+	if _, ok := graph.Vertices[node]; !ok {
+		return 0
+	}
+
+	neighborsFormTriangles := make(map[int]bool)
+	neighbors := graph.Vertices[node].Edges
+	for neighbor1 := range neighbors {
+		for neighbor2 := range neighbors {
+			if graph.Vertices[neighbor1].Edges[neighbor2] != nil && neighbor1 < neighbor2 {
+
+				neighborsFormTriangles[neighbor1] = true
+				neighborsFormTriangles[neighbor2] = true
+			}
+		}
+	}
+	if len(neighbors) != len(neighborsFormTriangles) {
+		fmt.Println("Error in vt")
+	}
+	count := 0
+	for _, formTriangle := range neighborsFormTriangles {
+		if formTriangle {
+			count++
+		}
+	}
+	return count
+}
+
+func (graph *Graph) vtExcludingC(node int, c Community) int {
+	/* Correspond to vt(x,V\C) in https://dl-acm-org.docelec.insa-lyon.fr/doi/pdf/10.1145/2566486.2568010 */
+	if _, ok := graph.Vertices[node]; !ok {
+		return 0
+	}
+
+	neighborsFormTriangles := make(map[int]bool)
+	neighbors := graph.Vertices[node].Edges
+	for neighbor := range neighbors {
+		if c.Vertices[neighbor] == nil {
+			for neighbor2 := range graph.Vertices[neighbor].Edges {
+				if neighbor2 != node && neighbors[neighbor2] != nil && neighbor2 < neighbor {
+					neighborsFormTriangles[neighbor2] = true
+				}
+			}
+		}
+	}
+	count := 0
+	for _, formTriangle := range neighborsFormTriangles {
+		if formTriangle {
+			count++
+		}
+	}
+
 	return count
 }
 
@@ -118,8 +198,53 @@ func (graph *Graph) SortVerticesByCC() []*Vertex {
 	return vertices
 }
 
-func (graph *Graph) WccCommunity(node int, c Community) float32 {
-	return 0.1
+func (graph *Graph) WccNode(node int, c Community) float64 {
+	triangleInGraph := graph.CountTrianglesVertices(node)
+	if triangleInGraph == 0 {
+		return 0
+	}
+
+	triangleInC := graph.CountTrianglesVerticesCommunity(node, c)
+	vtxV := graph.vt(node)
+	vtxVexC := graph.vtExcludingC(node, c)
+	if triangleInGraph == 0 || (float64(vtxVexC)+float64(len(c.Vertices)-1)) == 0 {
+		return 0
+	}
+	res := float64(triangleInC) / float64(triangleInGraph) * float64(vtxV) / (float64(vtxVexC) + float64(len(c.Vertices)-1))
+	if res > 1 || res < 0 {
+		fmt.Println("Resultat incohérent : ", res)
+		fmt.Println("Node : ", node)
+		fmt.Println("triangleInC : ", triangleInC)
+		fmt.Println("triangleInGraph : ", triangleInGraph)
+		fmt.Println("vtxV : ", vtxV)
+		fmt.Println("vtxVexC : ", vtxVexC)
+		fmt.Println("len(c.Vertices) : ", len(c.Vertices))
+	}
+
+	return res
+}
+
+func (graph *Graph) WccCommunity(c Community) float64 {
+	if len(c.Vertices) == 0 {
+		return 0
+	}
+
+	avg := float64(0)
+	for key := range c.Vertices {
+		avg += graph.WccNode(key, c)
+	}
+	if (avg / float64(len(c.Vertices))) > 1 {
+		fmt.Println("avg : ", avg/float64(len(c.Vertices)))
+	}
+	return avg / float64(len(c.Vertices))
+}
+
+func (graph *Graph) Wcc() float64 {
+	avg := float64(0)
+	for _, community := range graph.Communities {
+		avg += graph.WccCommunity(*community) * float64(len(community.Vertices))
+	}
+	return avg / float64(len(graph.Vertices))
 }
 
 func NewGraphFromFile(filePath string) *Graph {
@@ -150,8 +275,15 @@ func NewGraphFromFile(filePath string) *Graph {
 }
 
 func main() {
-	filePath := "com-amazon.ungraph.txt"
+	filePath := "com-dblp.ungraph.txt"
+	//filePath := "com-amazon.ungraph.txt"
+	//filePath := "test_graph.txt"
+	//filePath := "test_graph copy.txt"
 	graph := NewGraphFromFile(filePath)
+	for key, vertex := range graph.Vertices {
+		vertex.CC = graph.ClusteringCoeficient(key)
+	}
+
 	graph.RemoveEdgesWithoutTriangles()
 
 	// ######################################################################################################################
@@ -200,21 +332,27 @@ func main() {
 
 		graph.Communities = append(graph.Communities, community)
 	}
+	fmt.Println("Number of communities : ", len(graph.Communities))
+	fmt.Println("Wcc : ", graph.Wcc())
+	CommunityWithAllVertices := &Community{make(map[int]*Vertex)}
+	for _, vertex := range graph.Vertices {
+		CommunityWithAllVertices.Vertices[vertex.index] = vertex
+	}
+	fmt.Println("Wcc community 1 : ", graph.WccCommunity(*graph.Communities[1]))
+	fmt.Println("Wcc with 1 community : ")
+	fmt.Println("WCC community : ", graph.WccCommunity(*CommunityWithAllVertices))
+	/* for _, community := range graph.Communities {
+		fmt.Println("Community : ")
+		for key := range community.Vertices {
+			fmt.Print(key, " ")
+		}
+		fmt.Println()
+	}
 
-	fmt.Println("Communities : ", len(graph.Communities))
-
-	// for _, community := range graph.Communities {
-	// 	fmt.Println("Community : ")
-	// 	for key := range community.Vertices {
-	// 		fmt.Print(key, " ")
-	// 	}
-	// 	fmt.Println()
-	// }
-
-	// for key, vertex := range graph.Vertices {
-	// 	for dest := range vertex.Edges {
-	// 		fmt.Println(key, "<-->", dest)
-	// 	}
-	// }
+	for key, vertex := range graph.Vertices {
+		for dest := range vertex.Edges {
+			fmt.Println(key, "<-->", dest)
+		}
+	} */
 
 }
