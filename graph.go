@@ -349,6 +349,11 @@ func main() {
 		fmt.Println()
 	}
 
+	// for key, vertex := range graph.Vertices {
+	// 	for dest := range vertex.Edges {
+	// 		fmt.Println(key, "<-->", dest)
+	// 	}
+	// }
 	for key, vertex := range graph.Vertices {
 		for dest := range vertex.Edges {
 			fmt.Println(key, "<-->", dest)
