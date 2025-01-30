@@ -27,11 +27,13 @@ type Vertex struct {
 	CC        float32
 }
 
-func (graph Graph) GetCommunity(node int) *Community {
+func (graph *Graph) GetCommunity(node int) *Community {
 	// TODO : Peut être optimiser en stockant les communautés pour chaque noeud (parce que la ça prends BEAUCOUP de temps)
 	c := graph.Vertices[node].community
 	if c == nil {
-		panic("No community for node " + strconv.Itoa(node))
+		WriteLog("No community for node "+strconv.Itoa(node), graph)
+		panic("No community for node " + strconv.Itoa(node) + "see log.txt for more informations")
+
 	}
 	return c
 }
@@ -260,13 +262,22 @@ func (graph *Graph) WccNode(node int) float64 {
 	}
 	res := float64(triangleInC) / float64(triangleInGraph) * float64(vtxV) / (float64(vtxVexC) + float64(len(c.Vertices)-1))
 	if res > 1 || res < 0 {
-		fmt.Println("Resultat incohérent : ", res)
-		fmt.Println("Node : ", node)
-		fmt.Println("triangleInC : ", triangleInC)
-		fmt.Println("triangleInGraph : ", triangleInGraph)
-		fmt.Println("vtxV : ", vtxV)
-		fmt.Println("vtxVexC : ", vtxVexC, "Exclude : ", c.Vertices)
-		fmt.Println("len(c.Vertices) : ", len(c.Vertices))
+		str := "Resultat incohérent de WccNode : " + strconv.FormatFloat(res, 'f', 6, 64) + "\n"
+		str += "\nNode : "
+		str += strconv.Itoa(node)
+		str += "\ntriangleInC : "
+		str += strconv.Itoa(triangleInC)
+		str += "\ntriangleInGraph : "
+		str += strconv.Itoa(triangleInGraph)
+		str += "\nvtxV : "
+		str += strconv.Itoa(vtxV)
+		str += "\nvtxVexC : "
+		str += strconv.Itoa(vtxVexC)
+		str += "\nlen(c.Vertices) : "
+		str += strconv.Itoa(len(c.Vertices))
+		str += "\n\n"
+		WriteLog(str, graph)
+		panic("Resultat incohérent de WccNode : " + strconv.FormatFloat(res, 'f', 6, 64))
 	}
 
 	return res
@@ -306,7 +317,8 @@ func (graph *Graph) WccI(node int, c *Community) float64 {
 
 	newC.Vertices[node] = graph.Vertices[node]
 	if c.Vertices[node] != nil {
-		panic("Error")
+		WriteLog("Error of community pointer in WccI. ", graph)
+		panic("Error of community pointer in WccI. See log.txt for more informations")
 	}
 	return 1 / float64(V) * (float64(len(newC.Vertices))*graph.WccCommunity(&newC) - graph.WccCommunity(c)*float64(len(c.Vertices)))
 }
@@ -320,7 +332,8 @@ func (graph *Graph) WccR(node int, c *Community) float64 {
 	}
 	delete(newC.Vertices, node)
 	if c.Vertices[node] == nil {
-		panic("Error")
+		WriteLog("Error of community pointer in WccR. ", graph)
+		panic("Error of community pointer in WccR. See log.txt for more informations")
 	}
 	return 1 / float64(V) * (float64(len(newC.Vertices))*graph.WccCommunity(&newC) - graph.WccCommunity(c)*float64(len(c.Vertices)))
 
@@ -335,7 +348,8 @@ func (graph *Graph) WccT(node int, source Community, dest Community) float64 {
 func NewGraphFromFile(filePath string) *Graph {
 	file, ok := os.Open(filePath)
 	if ok != nil {
-		panic("Error opening file")
+		WriteLog("Error opening file :"+filePath, nil)
+		panic("Error opening file. See log.txt for more informations")
 	}
 	defer file.Close()
 
@@ -363,6 +377,30 @@ func NewGraphFromFile(filePath string) *Graph {
 		v.index = k
 	}
 	return graph
+}
+
+func WriteLog(err string, graph *Graph) {
+	file, ok := os.Create("log.txt")
+	if ok != nil {
+		panic("Error opening file")
+	}
+	defer func() {
+		if err := file.Close(); err != nil {
+			panic(err)
+		}
+	}()
+
+	file.WriteString(err)
+	if graph != nil {
+		for key, c := range graph.Communities {
+			if c != nil {
+				file.WriteString("Community : " + strconv.Itoa(key) + " Vertices : " + strconv.Itoa(len(c.Vertices)) + "\n")
+			}
+		}
+	} else {
+		file.WriteString("Graph is nil")
+	}
+
 }
 
 func (graph *Graph) bestMovement(node int) (int, *Community) {
