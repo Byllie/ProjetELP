@@ -1,11 +1,11 @@
 module Main exposing (..)
 
 import Browser
-import Html exposing (Html, div, input, button, text)
-import Html.Attributes exposing (placeholder)
+import Html exposing (Html, div, input, button, text, textarea, h1)
+import Html.Attributes exposing (placeholder, class)
 import Html.Events exposing (onClick, onInput)
-import ParseTcTurtle exposing (parser)
-import DrawTcTurtle exposing (draw)
+import ParseTcTurtle exposing (read)
+import DrawTcTurtle exposing (draw, display)
 
 
 type alias Model =
@@ -33,23 +33,25 @@ update msg model =
 
         ParseCommand ->
             let
-                parsedResult = parser model.text
+                parsedResult = read model.text
             in
             { model | result = parsedResult }
 
 
 view : Model -> Html Msg
 view model =
-    div []
-        [ div [] [ text "Tapez votre code ci-dessous :" ]
-        , input
+    div [class "container"]
+        [ h1 [] [text "TC Tortu(r)e"]
+        , div [] [ text "Tapez votre code ci-dessous :" ]
+        , textarea
             [ placeholder "exemple : [Repeat 360 [Forward 1, Left 1]]"
             , Html.Attributes.value model.text
             , onInput updateTextInput
             ] []
         , button [ onClick ParseCommand ] [ text "Dessiner" ]
-        , div [] [ text ("Commande entrée : " ++ model.text) ]
-        , div [] [ text ("Résultat du parsing : " ++ (draw model.result)) ]
+--        , div [] [ text ("Commande entrée : " ++ model.text) ]
+--        , div [] [ text ("Point a tracer : " ++ draw model.result) ]
+        , display model.result
         ]
 
 updateTextInput : String -> Msg

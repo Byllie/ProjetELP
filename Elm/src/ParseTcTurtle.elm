@@ -1,4 +1,4 @@
-module ParseTcTurtle exposing (parser)
+module ParseTcTurtle exposing (read)
 
 import Parser exposing (..)
 
@@ -129,8 +129,8 @@ parseProgram =
         |. end
 
 -- Fonction pour exécuter le parseur
-parser : String -> List (Float, Float)
-parser input =
+read : String -> List (Float, Float)
+read input =
     case Parser.run parseProgram input of
         Ok instructions ->
             let
