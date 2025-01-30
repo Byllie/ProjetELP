@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type Graph struct {
@@ -119,20 +120,36 @@ func (graph *Graph) vt(node int) int {
 
 	}
 	neighbors := graph.Vertices[node].Edges
+	n := len(neighbors)
+	i := 0
 	for neighbor1 := range neighbors {
+		j := 0
+		for neighbor2 := range neighbors {
+			if graph.Vertices[neighbor1].Edges[neighbor2] != nil && neighbor1 < neighbor2 {
+				neighborsFormTriangles[neighbor1] = true
+				neighborsFormTriangles[neighbor2] = true
+			}
+			j++
+			if j == n {
+				break
+			}
+		}
+		i++
+		if i == n {
+			break
+		}
+	}
+
+	/* for neighbor1 := range neighbors {
 		for neighbor2 := range neighbors {
 			if graph.Vertices[neighbor1].Edges[neighbor2] != nil && neighbor1 < neighbor2 {
 				neighborsFormTriangles[neighbor1] = true
 				neighborsFormTriangles[neighbor2] = true
 			}
 		}
-	}
-
-	/* if len(neighbors) != len(neighborsFormTriangles) {
-		fmt.Println("Error in vt")
 	} */
-	/* fmt.Println(neighborsFormTriangles)
-	fmt.Println(len(neighbors), len(neighborsFormTriangles)) */
+	//fmt.Println(neighborsFormTriangles)
+	//fmt.Println(len(neighbors), len(neighborsFormTriangles))
 	count := 0
 	for _, formTriangle := range neighborsFormTriangles {
 		if formTriangle {
@@ -231,16 +248,15 @@ func (graph *Graph) WccNode(node int, c Community) float64 {
 		return 0
 	}
 	res := float64(triangleInC) / float64(triangleInGraph) * float64(vtxV) / (float64(vtxVexC) + float64(len(c.Vertices)-1))
-	/* 	if res > 1 || res < 0 {
+	if res > 2 || res < 0 {
 		fmt.Println("Resultat incohérent : ", res)
 		fmt.Println("Node : ", node)
-		fmt.Println("triangleInC : ", triang	vtxV := graph.vt(node)
-leInC)
+		fmt.Println("triangleInC : ", triangleInC)
 		fmt.Println("triangleInGraph : ", triangleInGraph)
 		fmt.Println("vtxV : ", vtxV)
 		fmt.Println("vtxVexC : ", vtxVexC)
 		fmt.Println("len(c.Vertices) : ", len(c.Vertices))
-	} */
+	}
 
 	return res
 }
@@ -295,7 +311,10 @@ func (graph *Graph) WccT(node int, source Community, dest Community) float64 {
 }
 
 func NewGraphFromFile(filePath string) *Graph {
-	file, _ := os.Open(filePath)
+	file, ok := os.Open(filePath)
+	if ok != nil {
+		panic("Error opening file")
+	}
 	defer file.Close()
 
 	graph := &Graph{Vertices: make(map[int]*Vertex), Communities: []*Community{}}
@@ -332,8 +351,7 @@ func (graph *Graph) bestMovement(node int) (int, *Community) {
 		wccR = 0
 	} else {
 		wccR = graph.WccR(node, *sourceC)
-	}	vtxV := graph.vt(node)
-
+	}
 	wccT := 0.0
 	var bestC *Community
 	for dest := range graph.Vertices[node].Edges {
@@ -379,14 +397,13 @@ func main() {
 	}
 	pprof.StartCPUProfile(f)
 	defer pprof.StopCPUProfile()
-	// Your application code here
 
 	//filePath := "com-dblp.ungraph.txt"
 	filePath := "com-amazon.ungraph.txt"
 	//filePath := "test_graph.txt"
 	//filePath := "test_graph copy.txt"
 	graph := NewGraphFromFile(filePath)
-	precision := -0.000000000001
+	precision := 0.000000000001
 	max_index := 0
 	for key, vertex := range graph.Vertices {
 		vertex.CC = graph.ClusteringCoeficient(key)
@@ -446,6 +463,17 @@ func main() {
 
 		graph.Communities = append(graph.Communities, community)
 	}
+	startTime := time.Now()
+	n := 30
+	for i := 0; i < n; i++ {
+		for key, _ := range graph.Vertices {
+			graph.vt(key)
+		}
+	}
+	fmt.Println("Length of graph.Vertices : ", len(graph.Vertices))
+	fmt.Println("Time to calculate vt : ", time.Since(startTime)/time.Duration(n))
+	fmt.Println("Average time to calculate vt : ", time.Since(startTime)/time.Duration(n*len(graph.Vertices)))
+
 	/* 	fmt.Println("Number of communities : ", len(graph.Communities))
 	   	fmt.Println("Wcc : ", graph.Wcc())
 	   	CommunityWithAllVertices := &Community{make(map[int]*Vertex)}
@@ -497,7 +525,7 @@ func main() {
 	var newGraph Graph
 	newGraph.Vertices = graph.Vertices
 	for math.Abs(newWCC-WCC) > precision {
-		panic("Testing")
+		//panic("Testing")
 		var listMovement = make([]int, max_index+1)
 		fmt.Println("New iteration")
 		fmt.Println("WCC : ", WCC)
@@ -508,8 +536,11 @@ func main() {
 		listDest := make(map[int]*Community)
 		for key, _ := range graph.Vertices {
 			if i*100/len(graph.Vertices) > pourcentage {
-				pourcentage += 1
+				pourcentage = i * 100 / len(graph.Vertices)
 				fmt.Println(pourcentage, "%")
+			}
+			if pourcentage > 25 {
+				panic("Test")
 			}
 			var c *Community
 			listMovement[key], c = graph.bestMovement(key)
@@ -520,6 +551,9 @@ func main() {
 		}
 
 		fmt.Println("Applying movements")
+		fmt.Println("Movements : ", listMovement)
+		fmt.Println("Destinations : ", listDest)
+
 		for key, movement := range listMovement {
 
 			if movement == REMOVE {
