@@ -1,7 +1,7 @@
 module ParseTcTurtle exposing (read)
 
 import Parser exposing (..)
-
+-- En plus du cours, pas mal d'inspiration viennent de ce github pour gérer les instructions qui bouclent https://github.com/jinjor/elm-xml-parser/blob/master/src/XmlParser.elm
 type Instruction
     = Forward Int
     | Left Int
