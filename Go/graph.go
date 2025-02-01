@@ -1,4 +1,4 @@
-package main
+package test
 
 import (
 	"bufio"
@@ -27,7 +27,10 @@ type Vertex struct {
 	community *Community
 	CC        float32
 }
-
+type ResultBestMouvement struct {
+	movement     int
+	community *Community
+}
 func removeCommunity(graph *Graph, key int) {
 	community := graph.Communities[key]
 	if len(community.Vertices) != 0 {
@@ -618,6 +621,12 @@ func main() {
 	// ############################################################################################################
 	WCC := graph.Wcc()
 	var newWCC float64
+	const numWorkers = 8
+	jobs := make(chan int, 2*numWorkers)
+	results := make(chan ResultBestMouvement, 2*numWorkers)
+	for w := 1; w <= numWorkers; w++ {
+		go worker(w, jobs, results, graph)
+	}
 	for math.Abs(newWCC-WCC) > precision {
 		//panic("Testing")
 		startTime := time.Now()
@@ -630,6 +639,10 @@ func main() {
 		i := 0
 		//pourcentage := 0
 		listDest := make(map[int]*Community)
+		go createJobs(graph, jobs)
+		for a := 1; a <= len(graph.Vertices); a++ {
+			r:=<-results
+		}
 		for key, _ := range graph.Vertices {
 
 			/* if i*100/len(graph.Vertices) > pourcentage {
@@ -641,6 +654,7 @@ func main() {
 				panic("Test")
 
 			} */
+
 			var c *Community
 			listMovement[key], c = graph.bestMovement(key)
 			if listMovement[key] == MOVE {
@@ -693,4 +707,4 @@ func main() {
 		}
 	}
 
-}
+
