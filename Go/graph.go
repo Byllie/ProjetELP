@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type Graph struct {
@@ -25,6 +26,16 @@ type Vertex struct {
 	Edges     map[int]*Vertex
 	community *Community
 	CC        float32
+}
+
+func removeCommunity(graph *Graph, key int) {
+	community := graph.Communities[key]
+	if len(community.Vertices) != 0 {
+		panic("Trying to remove a non empty community")
+	}
+	graph.Communities[key] = graph.Communities[len(graph.Communities)-1]
+	graph.Communities = graph.Communities[:len(graph.Communities)-1]
+
 }
 
 func (graph *Graph) GetCommunity(node int) *Community {
@@ -125,9 +136,9 @@ func (graph *Graph) vt(node int) int {
 	}
 	neighbors := graph.Vertices[node].Edges
 	n := len(neighbors)
-	i := 0
+	i := 0 // Utiliser pour sortir de la boucle for sans passer par l'implementation du range qui prends du temps
 	for neighbor1 := range neighbors {
-		j := 0
+		j := 0 // Utiliser pour sortir de la boucle for sans passer par l'implementation du range qui prends du temps
 		for neighbor2 := range neighbors {
 			if graph.Vertices[neighbor1].Edges[neighbor2] != nil && neighbor1 < neighbor2 {
 				neighborsFormTriangles[neighbor1] = true
@@ -144,14 +155,6 @@ func (graph *Graph) vt(node int) int {
 		}
 	}
 
-	/* for neighbor1 := range neighbors {
-		for neighbor2 := range neighbors {
-			if graph.Vertices[neighbor1].Edges[neighbor2] != nil && neighbor1 < neighbor2 {
-				neighborsFormTriangles[neighbor1] = true
-				neighborsFormTriangles[neighbor2] = true
-			}
-		}
-	} */
 	//fmt.Println(neighborsFormTriangles)
 	//fmt.Println(len(neighbors), len(neighborsFormTriangles))
 	count := 0
@@ -194,6 +197,7 @@ func (graph *Graph) vtExcludingC(node int, c Community) int {
 		}
 
 	}
+	neighborsFormTriangles = nil
 
 	return count
 }
@@ -292,9 +296,9 @@ func (graph *Graph) WccCommunity(c *Community) float64 {
 	for key := range c.Vertices {
 		avg += graph.WccNode(key)
 	}
-	// if (avg / float64(len(c.Vertices))) > 1 {
-	// 	fmt.Println("avg : ", avg/float64(len(c.Vertices)))
-	// }
+	if (avg / float64(len(c.Vertices))) > 1 {
+		fmt.Println("avg : ", avg/float64(len(c.Vertices)))
+	}
 	return avg / float64(len(c.Vertices))
 }
 
@@ -310,32 +314,41 @@ func (graph *Graph) WccI(node int, c *Community) float64 {
 	// https://preview.redd.it/9my9pzmf2s771.png?auto=webp&s=5ff7c47100f9ac3edb284f9612ec3fe934bf311a
 	// maybe it works
 	V := len(graph.Vertices)
-	newC := Community{make(map[int]*Vertex)}
+	newC := &Community{make(map[int]*Vertex)}
 	for key, value := range c.Vertices {
 		newC.Vertices[key] = value
 	}
 
 	newC.Vertices[node] = graph.Vertices[node]
+	if newC.Vertices[node] == nil {
+		WriteLog("Error of community pointer in WccI. ", graph)
+		panic("Error of community pointer in WccI. See log.txt for more informations")
+	}
 	if c.Vertices[node] != nil {
 		WriteLog("Error of community pointer in WccI. ", graph)
 		panic("Error of community pointer in WccI. See log.txt for more informations")
 	}
-	return 1 / float64(V) * (float64(len(newC.Vertices))*graph.WccCommunity(&newC) - graph.WccCommunity(c)*float64(len(c.Vertices)))
+	return 1 / float64(V) * (float64(len(newC.Vertices))*graph.WccCommunity(newC) - graph.WccCommunity(c)*float64(len(c.Vertices)))
 }
 
 func (graph *Graph) WccR(node int, c *Community) float64 {
 	// La meme chose que WccI mais en enlevant le noeud node de la communauté c
 	V := len(graph.Vertices)
-	newC := Community{make(map[int]*Vertex)}
+	newC := &Community{make(map[int]*Vertex)}
 	for key, value := range c.Vertices {
 		newC.Vertices[key] = value
 	}
+
 	delete(newC.Vertices, node)
 	if c.Vertices[node] == nil {
-		WriteLog("Error of community pointer in WccR. ", graph)
+		WriteLog("Error of community pointer in WccR. c.Vertices[node] == nil ", graph)
 		panic("Error of community pointer in WccR. See log.txt for more informations")
 	}
-	return 1 / float64(V) * (float64(len(newC.Vertices))*graph.WccCommunity(&newC) - graph.WccCommunity(c)*float64(len(c.Vertices)))
+	if newC.Vertices[node] != nil {
+		WriteLog("Error of community pointer in WccR. newC.Vertices[node] != nil ", graph)
+		panic("Error of community pointer in WccR. See log.txt for more informations")
+	}
+	return 1 / float64(V) * (float64(len(newC.Vertices))*graph.WccCommunity(newC) - graph.WccCommunity(c)*float64(len(c.Vertices)))
 
 }
 func (graph *Graph) WccT(node int, source Community, dest Community) float64 {
@@ -384,12 +397,21 @@ func WriteLog(err string, graph *Graph) {
 	if ok != nil {
 		panic("Error opening file")
 	}
+
 	defer func() {
 		if err := file.Close(); err != nil {
 			panic(err)
 		}
 	}()
 
+	file2, ok := os.Create("memprof.ezview")
+	if ok != nil {
+
+		fmt.Println(err)
+		return
+
+	}
+	pprof.WriteHeapProfile(file2)
 	file.WriteString(err)
 	if graph != nil {
 		for key, c := range graph.Communities {
@@ -432,36 +454,41 @@ func (graph *Graph) bestMovement(node int) (int, *Community) {
 			}
 		}
 	}
-	if wccT > wccR && wccT > 0 {
+	if wccT > wccR && wccT > 1e-10 {
 		movement = MOVE
-	} else if wccT < wccR && wccR > 0 {
+	} else if wccT < wccR && wccR > 1e-10 {
 		movement = REMOVE
+	}
+	fmt.Println("Movement : ", movement)
+	if bestC != nil {
+		fmt.Println("Node : ", node, " WccT : ", wccT, " WccR : ", wccR, " WccI : ", graph.WccI(node, bestC))
+	} else {
+		fmt.Println("Node : ", node, " WccT : ", wccT, " WccR : ", wccR)
 	}
 	return movement, bestC
 }
 
 func (graph *Graph) UpdateCommunities() {
-	graph.Communities = []*Community{}
 	VisitedVertices := make(map[int]bool)
 
 	for _, vertex := range graph.Vertices {
-		if VisitedVertices[vertex.index] {
-			continue
-		}
-		community := &Community{make(map[int]*Vertex)}
-		community.Vertices[vertex.index] = vertex
-		vertex.community = community
-		VisitedVertices[vertex.index] = true
+		if vertex.community == nil {
+			community := &Community{make(map[int]*Vertex)}
+			community.Vertices[vertex.index] = vertex
+			vertex.community = community
+			VisitedVertices[vertex.index] = true
 
-		for dest := range vertex.Edges {
-			if !VisitedVertices[dest] {
-				community.Vertices[dest] = graph.Vertices[dest]
-				graph.Vertices[dest].community = community
-				VisitedVertices[dest] = true
-			}
+			graph.Communities = append(graph.Communities, community)
 		}
 
-		graph.Communities = append(graph.Communities, community)
+	}
+	for c, community := range graph.Communities {
+
+		if community == nil {
+			removeCommunity(graph, c)
+		} else if len(community.Vertices) == 0 {
+			removeCommunity(graph, c)
+		}
 	}
 }
 
@@ -480,13 +507,23 @@ func main() {
 		return
 
 	}
+
+	f2, err := os.Create("memprof.ezview")
+	if err != nil {
+
+		fmt.Println(err)
+		return
+
+	}
+
 	pprof.StartCPUProfile(f)
 	defer pprof.StopCPUProfile()
 
 	//filePath := "com-dblp.ungraph.txt"
-	filePath := "com-amazon.ungraph.txt"
+	//filePath := "com-amazon.ungraph.txt"
 	//filePath := "test_graph.txt"
 	//filePath := "test_graph copy.txt"
+	filePath := "test_graph5.txt"
 	graph := NewGraphFromFile(filePath)
 	precision := 0.000000000001
 	max_index := 0
@@ -515,7 +552,9 @@ func main() {
 	// ######################################################################################################################
 
 	graph.RemoveEdgesWithoutTriangles()
-
+	for key, vertex := range graph.Vertices {
+		vertex.CC = graph.ClusteringCoeficient(key)
+	}
 	// ######################################################################################################################
 	// Tests with http://snap.stanford.edu/data/index.html#communities datasets
 	// ######################################################################################################################
@@ -552,6 +591,12 @@ func main() {
 		graph.Communities = append(graph.Communities, community)
 	}
 
+	for c, community := range graph.Communities {
+		fmt.Println("Community : ", c, " Vertices : ", len(community.Vertices))
+		for key, _ := range community.Vertices {
+			fmt.Println("Node : ", key)
+		}
+	}
 	// ######################################################################################################################
 	// Tests of vt function for optimization
 	// ######################################################################################################################
@@ -575,23 +620,26 @@ func main() {
 	var newWCC float64
 	for math.Abs(newWCC-WCC) > precision {
 		//panic("Testing")
-
+		startTime := time.Now()
 		var listMovement = make([]int, max_index+1)
 		fmt.Println("New iteration")
 		fmt.Println("WCC : ", WCC)
+		fmt.Println("Nombre de communautés : ", len(graph.Communities))
 		newWCC = WCC
 
 		i := 0
-		pourcentage := 0
+		//pourcentage := 0
 		listDest := make(map[int]*Community)
 		for key, _ := range graph.Vertices {
 
-			if i*100/len(graph.Vertices) > pourcentage {
+			/* if i*100/len(graph.Vertices) > pourcentage {
 				pourcentage = i * 100 / len(graph.Vertices)
 				fmt.Println(pourcentage, "%")
-			}
+			} */
 			/* if pourcentage > 25 {
+
 				panic("Test")
+
 			} */
 			var c *Community
 			listMovement[key], c = graph.bestMovement(key)
@@ -616,22 +664,33 @@ func main() {
 				community = &Community{make(map[int]*Vertex)}
 				community.Vertices[key] = graph.Vertices[key]
 				graph.Vertices[key].community = community
+				graph.Communities = append(graph.Communities, community)
+
 			} else if movement != NO_ACTION {
 				// Move node to another community
 				sourceC := graph.GetCommunity(key)
 				destC := listDest[key]
+
 				if sourceC != nil {
-					sourceC.Vertices[key] = graph.Vertices[key]
+					delete(sourceC.Vertices, key)
 				}
 				if destC != nil {
 					destC.Vertices[key] = graph.Vertices[key]
 				}
 				graph.Vertices[key].community = destC
+
 			}
 		}
 		graph.UpdateCommunities()
 		WCC = graph.Wcc()
+		fmt.Println("Time to calculate WCC : ", time.Since(startTime))
+		pprof.WriteHeapProfile(f2)
 
+	}
+	for key, c := range graph.Communities {
+		for key2, _ := range c.Vertices {
+			fmt.Println("Node : ", key2, " Community : ", key)
+		}
 	}
 
 }
