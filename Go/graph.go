@@ -3,8 +3,8 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"net"
 	"math"
+	"net"
 	"os"
 	"runtime/pprof"
 	"sort"
