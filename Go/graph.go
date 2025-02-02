@@ -513,7 +513,6 @@ func createJobs(graph *Graph, jobs chan<- int) {
 	for key := range graph.Vertices {
 		jobs <- key
 	}
-	close(jobs)
 }
 
 func main() {
