@@ -317,7 +317,37 @@ func (graph *Graph) WccI(node int, c *Community) float64 {
 	// TODO : enlever les commentaires
 	// https://preview.redd.it/9my9pzmf2s771.png?auto=webp&s=5ff7c47100f9ac3edb284f9612ec3fe934bf311a
 	// maybe it works
-	V := len(graph.Vertices)
+
+	if len(c.Vertices) == 0 {
+		return 0
+	}
+	newC := &Community{make(map[int]*Vertex)}
+	for key, value := range c.Vertices {
+		newC.Vertices[key] = value
+	}
+	newC.Vertices[node] = graph.Vertices[node]
+	avgC := float64(0)
+	avgNewC := float64(0)
+	for key := range c.Vertices {
+		avgC += graph.WccNode(key)
+		avgNewC += graph.WccNode(key)
+	}
+	if (avgC / float64(len(c.Vertices))) > 1 {
+		fmt.Println("avg : ", avgC/float64(len(c.Vertices)))
+	}
+
+	if newC.Vertices[node] == nil {
+		WriteLog("Error of community pointer in WccI. ", graph)
+		panic("Error of community pointer in WccI. See log.txt for more informations")
+	}
+	if c.Vertices[node] != nil {
+		WriteLog("Error of community pointer in WccI. ", graph)
+		panic("Error of community pointer in WccI. See log.txt for more informations")
+	}
+
+	return (avgNewC - avgC + graph.WccNode(node)) / float64(len(c.Vertices))
+
+	/* V := len(graph.Vertices)
 	newC := &Community{make(map[int]*Vertex)}
 	for key, value := range c.Vertices {
 		newC.Vertices[key] = value
@@ -332,12 +362,42 @@ func (graph *Graph) WccI(node int, c *Community) float64 {
 		WriteLog("Error of community pointer in WccI. ", graph)
 		panic("Error of community pointer in WccI. See log.txt for more informations")
 	}
-	return 1 / float64(V) * (float64(len(newC.Vertices))*graph.WccCommunity(newC) - graph.WccCommunity(c)*float64(len(c.Vertices)))
+	return 1 / float64(V) * (float64(len(newC.Vertices))*graph.WccCommunity(newC) - graph.WccCommunity(c)*float64(len(c.Vertices))) */
 }
 
 func (graph *Graph) WccR(node int, c *Community) float64 {
 	// La meme chose que WccI mais en enlevant le noeud node de la communauté c
-	V := len(graph.Vertices)
+
+	if len(c.Vertices) == 0 {
+		return 0
+	}
+	newC := &Community{make(map[int]*Vertex)}
+	for key, value := range c.Vertices {
+		newC.Vertices[key] = value
+	}
+	delete(newC.Vertices, node)
+	avgC := float64(0)
+	avgNewC := float64(0)
+	for key := range c.Vertices {
+		avgC += graph.WccNode(key)
+		avgNewC += graph.WccNode(key)
+	}
+	if (avgC / float64(len(c.Vertices))) > 1 {
+		fmt.Println("avg : ", avgC/float64(len(c.Vertices)))
+	}
+
+	if c.Vertices[node] == nil {
+		WriteLog("Error of community pointer in WccR. c.Vertices[node] == nil ", graph)
+		panic("Error of community pointer in WccR. See log.txt for more informations")
+	}
+	if newC.Vertices[node] != nil {
+		WriteLog("Error of community pointer in WccR. newC.Vertices[node] != nil ", graph)
+		panic("Error of community pointer in WccR. See log.txt for more informations")
+	}
+
+	return (avgNewC - avgC + graph.WccNode(node)) / float64(len(c.Vertices))
+
+	/* V := len(graph.Vertices)
 	newC := &Community{make(map[int]*Vertex)}
 	for key, value := range c.Vertices {
 		newC.Vertices[key] = value
@@ -352,7 +412,7 @@ func (graph *Graph) WccR(node int, c *Community) float64 {
 		WriteLog("Error of community pointer in WccR. newC.Vertices[node] != nil ", graph)
 		panic("Error of community pointer in WccR. See log.txt for more informations")
 	}
-	return 1 / float64(V) * (float64(len(newC.Vertices))*graph.WccCommunity(newC) - graph.WccCommunity(c)*float64(len(c.Vertices)))
+	return 1 / float64(V) * (float64(len(newC.Vertices))*graph.WccCommunity(newC) - graph.WccCommunity(c)*float64(len(c.Vertices))) */
 
 }
 func (graph *Graph) WccT(node int, source Community, dest Community) float64 {
@@ -486,11 +546,12 @@ func (graph *Graph) UpdateCommunities() {
 		}
 
 	}
-	for c, community := range graph.Communities {
 
-		if community == nil {
-			removeCommunity(graph, c)
-		} else if len(community.Vertices) == 0 {
+	for c, community := range graph.Communities {
+		fmt.Println(len(graph.Communities))
+		fmt.Println(len(community.Vertices), len(graph.Communities[c].Vertices))
+		fmt.Println("Community : ", c, " Vertices : ", len(community.Vertices))
+		if len(community.Vertices) == 0 {
 			removeCommunity(graph, c)
 		}
 	}
@@ -636,7 +697,7 @@ func main() {
 	// ############################################################################################################
 	WCC := graph.Wcc()
 	var newWCC float64
-	const numWorkers = 8
+	const numWorkers = 6
 	jobs := make(chan int, 2*numWorkers)
 	results := make(chan ResultBestMouvement, 2*numWorkers)
 	for w := 1; w <= numWorkers; w++ {
