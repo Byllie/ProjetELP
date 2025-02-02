@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"net"
 	"os"
 	"runtime/pprof"
 	"sort"
@@ -400,6 +401,31 @@ func (graph *Graph) WccT(node int, source Community, dest Community) float64 {
 	// maybe it works
 	return graph.WccI(node, &dest) + graph.WccR(node, &source)
 }
+func NewGraphFromTCP(conn net.Conn) *Graph {
+	graph := &Graph{Vertices: make(map[int]*Vertex), Communities: []*Community{}}
+	scanner := bufio.NewScanner(conn)
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		if strings.HasPrefix(line, "#") || strings.TrimSpace(line) == "" {
+			continue
+		}
+		parts := strings.Fields(line)
+		if len(parts) != 2 {
+			continue
+		}
+
+		srcKey, _ := strconv.Atoi(parts[0])
+
+		destKey, _ := strconv.Atoi(parts[1])
+
+		graph.AddEdge(srcKey, destKey)
+	}
+	for k, v := range graph.Vertices {
+		v.index = k
+	}
+	return graph
+}
 
 func NewGraphFromFile(filePath string) *Graph {
 	file, ok := os.Open(filePath)
@@ -557,8 +583,8 @@ func createJobs(graph *Graph, jobs chan<- int) {
 	}
 }
 
-func main() {
-
+func handleConnection(conn net.Conn) {
+	defer conn.Close()
 	f, err := os.Create("myprogram.ezview")
 	if err != nil {
 
@@ -579,11 +605,11 @@ func main() {
 	defer pprof.StopCPUProfile()
 
 	//filePath := "com-dblp.ungraph.txt"
-	filePath := "com-amazon.ungraph.txt"
+	//filePath := "com-amazon.ungraph.txt"
 	//filePath := "test_graph.txt"
 	//filePath := "test_graph copy.txt"
 	//filePath := "test_graph5.txt"
-	graph := NewGraphFromFile(filePath)
+	graph := NewGraphFromTCP(conn)
 	precision := 0.01
 	max_index := 0
 	for key, vertex := range graph.Vertices {
@@ -761,4 +787,23 @@ func main() {
 			fmt.Println("Node : ", key2, " Community : ", key, " WccNode : ", graph.WccNode(key2, c))
 		}
 	} */
+	fmt.Println("Done")
+}
+
+func main() {
+	listener, err := net.Listen("tcp", ":5827")
+	if err != nil {
+		fmt.Println("Erreur dans le démarrage du serveur:", err)
+		return
+	}
+	defer listener.Close()
+	fmt.Println("Server is listening on port 5827...")
+	for {
+		conn, err := listener.Accept()
+		if err != nil {
+			fmt.Println("Erreur de connection tcp:", err)
+			continue
+		}
+		go handleConnection(conn)
+	}
 }
