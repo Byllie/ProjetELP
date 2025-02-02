@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"net"
+	"math"
 	"os"
 	"runtime/pprof"
 	"sort"
@@ -494,6 +495,57 @@ func WriteLog(err string, graph *Graph) {
 
 }
 
+func WriteCommunityInFile(graph *Graph, filePath string) {
+	file, ok := os.Create(filePath)
+	if ok != nil {
+		panic("Error opening file")
+	}
+
+	defer func() {
+		if err := file.Close(); err != nil {
+			panic(err)
+		}
+	}()
+
+	for key, c := range graph.Communities {
+		if c != nil {
+			file.WriteString("Community\t" + strconv.Itoa(key) + "\tVertices\t" + strconv.Itoa(len(c.Vertices)) + "\n")
+			for key2, _ := range c.Vertices {
+				file.WriteString("Node\t" + strconv.Itoa(key2) + "\n")
+			}
+		}
+	}
+}
+
+func ParseCommunityFile(filePath string) []*Community {
+	file, ok := os.Open(filePath)
+	if ok != nil {
+		panic("Error opening file")
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	var communities []*Community
+	var c *Community
+	for scanner.Scan() {
+		line := scanner.Text()
+		parts := strings.Fields(line)
+		if parts[0] == "Community" {
+			if c != nil {
+				communities = append(communities, c)
+			}
+			c = &Community{make(map[int]*Vertex)}
+		} else if parts[0] == "Node" {
+			node, _ := strconv.Atoi(parts[1])
+			c.Vertices[node] = nil
+		}
+	}
+	if c != nil {
+		communities = append(communities, c)
+	}
+	return communities
+}
+
 func (graph *Graph) bestMovement(node int) (int, int, *Community) {
 	movement := NO_ACTION
 	sourceC := graph.GetCommunity(node)
@@ -593,14 +645,6 @@ func handleConnection(conn net.Conn) {
 
 	}
 
-	f2, err := os.Create("memprof.ezview")
-	if err != nil {
-
-		fmt.Println(err)
-		return
-
-	}
-
 	pprof.StartCPUProfile(f)
 	defer pprof.StopCPUProfile()
 
@@ -610,7 +654,7 @@ func handleConnection(conn net.Conn) {
 	//filePath := "test_graph copy.txt"
 	//filePath := "test_graph5.txt"
 	graph := NewGraphFromTCP(conn)
-	precision := 0.01
+	precision := 0.019
 	max_index := 0
 	for key, vertex := range graph.Vertices {
 		vertex.CC = graph.ClusteringCoeficient(key)
@@ -722,7 +766,7 @@ func handleConnection(conn net.Conn) {
 	for w := 1; w <= numWorkers; w++ {
 		go worker(w, jobs, results, graph)
 	}
-	for (WCC-newWCC)/newWCC > precision {
+	for math.Abs((WCC-newWCC)/newWCC) > precision {
 		startTime := time.Now()
 		var listMovement = make([]int, max_index+1)
 		fmt.Println("New iteration")
@@ -778,9 +822,17 @@ func handleConnection(conn net.Conn) {
 		WCC = graph.Wcc()
 		fmt.Println("WCC : ", WCC, " old WCC : ", newWCC)
 		fmt.Println("Time to calculate WCC : ", time.Since(startTime))
+		fmt.Println("Conditions : ", (WCC-newWCC)/newWCC, " Precision : ", precision)
 
-		pprof.WriteHeapProfile(f2)
+	}
+	WriteCommunityInFile(graph, "communities.txt")
+	listCommunities := ParseCommunityFile("communities.txt")
 
+	for key, c := range listCommunities {
+		fmt.Println("Community : ", key, " Vertices : ", len(c.Vertices))
+		for key2, _ := range c.Vertices {
+			fmt.Println("Node : ", key2)
+		}
 	}
 	/* for key, c := range graph.Communities {
 		for key2, _ := range c.Vertices {
@@ -806,4 +858,5 @@ func main() {
 		}
 		go handleConnection(conn)
 	}
+
 }
