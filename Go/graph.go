@@ -1,4 +1,4 @@
-package test
+package main
 
 import (
 	"bufio"
@@ -28,9 +28,10 @@ type Vertex struct {
 	CC        float32
 }
 type ResultBestMouvement struct {
-	movement     int
+	movement  int
 	community *Community
 }
+
 func removeCommunity(graph *Graph, key int) {
 	community := graph.Communities[key]
 	if len(community.Vertices) != 0 {
@@ -501,6 +502,20 @@ const (
 	MOVE      = 1
 )
 
+func worker(id int, jobs <-chan int, results chan<- ResultBestMouvement, graph *Graph) {
+	for key := range jobs {
+		fmt.Printf("Le worker %d travaille sur le noeud: %d \n", id, key)
+		mouvement, c := graph.bestMovement(key)
+		results <- ResultBestMouvement{movement: mouvement, community: c}
+	}
+}
+func createJobs(graph *Graph, jobs chan<- int) {
+	for key := range graph.Vertices {
+		jobs <- key
+	}
+	close(jobs)
+}
+
 func main() {
 
 	f, err := os.Create("myprogram.ezview")
@@ -636,33 +651,17 @@ func main() {
 		fmt.Println("Nombre de communautés : ", len(graph.Communities))
 		newWCC = WCC
 
-		i := 0
 		//pourcentage := 0
 		listDest := make(map[int]*Community)
 		go createJobs(graph, jobs)
-		for a := 1; a <= len(graph.Vertices); a++ {
-			r:=<-results
-		}
 		for key, _ := range graph.Vertices {
-
-			/* if i*100/len(graph.Vertices) > pourcentage {
-				pourcentage = i * 100 / len(graph.Vertices)
-				fmt.Println(pourcentage, "%")
-			} */
-			/* if pourcentage > 25 {
-
-				panic("Test")
-
-			} */
-
-			var c *Community
-			listMovement[key], c = graph.bestMovement(key)
+			r := <-results
+			c := r.community
+			listMovement[key] = r.movement
 			if listMovement[key] == MOVE {
 				listDest[key] = c
 			}
-			i++
 		}
-
 		fmt.Println("Applying movements")
 		/* fmt.Println("Movements : ", listMovement)
 		fmt.Println("Destinations : ", listDest) */
@@ -707,4 +706,4 @@ func main() {
 		}
 	}
 
-
+}
