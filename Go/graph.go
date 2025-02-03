@@ -23,10 +23,13 @@ type Community struct {
 }
 
 type Vertex struct {
-	index     int
-	Edges     map[int]*Vertex
-	community *Community
-	CC        float32
+	index              int
+	Edges              map[int]*Vertex
+	community          *Community
+	CC                 float32
+	Triangles          int
+	NbVerticesTriangle int
+	ActualWCC          float64
 }
 type ResultBestMouvement struct {
 	node      int
@@ -57,10 +60,10 @@ func (graph *Graph) GetCommunity(node int) *Community {
 
 func (graph *Graph) AddEdge(srcKey, destKey int) {
 	if _, ok := graph.Vertices[srcKey]; !ok {
-		graph.Vertices[srcKey] = &Vertex{len(graph.Vertices) + 1, make(map[int]*Vertex), nil, -1}
+		graph.Vertices[srcKey] = &Vertex{len(graph.Vertices) + 1, make(map[int]*Vertex), nil, -1, 0, 0, -1}
 	}
 	if _, ok := graph.Vertices[destKey]; !ok {
-		graph.Vertices[destKey] = &Vertex{len(graph.Vertices) + 1, make(map[int]*Vertex), nil, -1}
+		graph.Vertices[destKey] = &Vertex{len(graph.Vertices) + 1, make(map[int]*Vertex), nil, -1, 0, 0, -1}
 	}
 
 	graph.Vertices[srcKey].Edges[destKey] = graph.Vertices[destKey]
@@ -249,12 +252,12 @@ func (graph *Graph) SortVerticesByCC() []*Vertex {
 }
 
 func (graph *Graph) WccNode(node int, c *Community) float64 {
-	triangleInGraph := graph.CountTrianglesVertices(node)
+	triangleInGraph := graph.Vertices[node].Triangles
 	if triangleInGraph == 0 {
 		return 0
 	}
 	triangleInC := graph.CountTrianglesVerticesCommunity(node, c)
-	vtxV := graph.vt(node)
+	vtxV := graph.Vertices[node].NbVerticesTriangle
 	vtxVexC := graph.vtExcludingC(node, c)
 	if triangleInGraph == 0 || (float64(vtxVexC)+float64(len(c.Vertices)-1)) == 0 {
 		return 0
@@ -302,6 +305,7 @@ func (graph *Graph) WccCommunity(c *Community) float64 {
 func (graph *Graph) Wcc() float64 {
 	avg := float64(0)
 	for _, v := range graph.Vertices {
+		//v.ActualWCC = graph.WccNode(v.index, v.community)
 		avg += graph.WccNode(v.index, v.community)
 	}
 	return avg / float64(len(graph.Vertices))
@@ -321,7 +325,8 @@ func (graph *Graph) WccI(node int, c *Community) float64 {
 	newC.Vertices[node] = graph.Vertices[node]
 	avgC := float64(0)
 	avgNewC := float64(0)
-	for key := range c.Vertices {
+	for key, _ := range c.Vertices {
+		//avgC += v.ActualWCC
 		avgC += graph.WccNode(key, c)
 		avgNewC += graph.WccNode(key, newC)
 	}
@@ -557,9 +562,12 @@ func (graph *Graph) bestMovement(node int) (int, int, *Community) {
 	}
 	wccT := 0.0
 	var bestC *Community
+	visitedCommunities := make(map[*Community]bool)
 	for dest := range graph.Vertices[node].Edges {
 		destC := graph.GetCommunity(dest)
-		if destC != nil && destC != sourceC {
+
+		if destC != nil && destC != sourceC && !visitedCommunities[destC] {
+			visitedCommunities[destC] = true
 			if sourceC != nil {
 				temp := graph.WccI(node, destC) + graph.WccR(node, sourceC)
 				if temp > wccT {
@@ -637,6 +645,7 @@ func createJobs(graph *Graph, jobs chan<- int) {
 
 func handleConnection(conn net.Conn) {
 	defer conn.Close()
+	fmt.Println("Connection Started")
 	f, err := os.Create("myprogram.ezview")
 	if err != nil {
 
@@ -649,15 +658,18 @@ func handleConnection(conn net.Conn) {
 	defer pprof.StopCPUProfile()
 
 	//filePath := "com-dblp.ungraph.txt"
-	//filePath := "com-amazon.ungraph.txt"
+	filePath := "com-amazon.ungraph.txt"
 	//filePath := "test_graph.txt"
 	//filePath := "test_graph copy.txt"
 	//filePath := "test_graph5.txt"
-	graph := NewGraphFromTCP(conn)
+	//graph := NewGraphFromTCP(conn)
+	graph := NewGraphFromFile(filePath)
 	precision := 0.019
 	max_index := 0
 	for key, vertex := range graph.Vertices {
 		vertex.CC = graph.ClusteringCoeficient(key)
+		vertex.Triangles = graph.CountTrianglesVertices(key)
+		vertex.NbVerticesTriangle = graph.vt(key)
 		vertex.index = key
 		if key > max_index {
 			max_index = key
@@ -732,12 +744,12 @@ func handleConnection(conn net.Conn) {
 	   	graph.Vertices[3].community = c
 	   	delete(graph.Communities[0].Vertices, 3) */
 
-	for c, community := range graph.Communities {
+	/* for c, community := range graph.Communities {
 		fmt.Println("Community : ", c, " Vertices : ", len(community.Vertices))
 		for key, _ := range community.Vertices {
 			fmt.Println("Node : ", key)
 		}
-	}
+	} */
 	// ######################################################################################################################
 	// Tests of vt function for optimization
 	// ######################################################################################################################
@@ -760,7 +772,7 @@ func handleConnection(conn net.Conn) {
 	WCC := graph.Wcc()
 	var newWCC float64
 	newWCC = 0
-	const numWorkers = 6
+	const numWorkers = 12
 	jobs := make(chan int, 2*numWorkers)
 	results := make(chan ResultBestMouvement, 2*numWorkers)
 	for w := 1; w <= numWorkers; w++ {
@@ -826,14 +838,14 @@ func handleConnection(conn net.Conn) {
 
 	}
 	WriteCommunityInFile(graph, "communities.txt")
-	listCommunities := ParseCommunityFile("communities.txt")
+	//listCommunities := ParseCommunityFile("communities.txt")
 
-	for key, c := range listCommunities {
+	/* for key, c := range listCommunities {
 		fmt.Println("Community : ", key, " Vertices : ", len(c.Vertices))
 		for key2, _ := range c.Vertices {
 			fmt.Println("Node : ", key2)
 		}
-	}
+	} */
 	/* for key, c := range graph.Communities {
 		for key2, _ := range c.Vertices {
 			fmt.Println("Node : ", key2, " Community : ", key, " WccNode : ", graph.WccNode(key2, c))
