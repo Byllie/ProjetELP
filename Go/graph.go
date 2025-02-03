@@ -664,7 +664,7 @@ func handleConnection(conn net.Conn) {
 	//filePath := "test_graph5.txt"
 	//graph := NewGraphFromTCP(conn)
 	graph := NewGraphFromFile(filePath)
-	precision := 0.019
+	precision := 0.0001
 	max_index := 0
 	for key, vertex := range graph.Vertices {
 		vertex.CC = graph.ClusteringCoeficient(key)
@@ -731,6 +731,7 @@ func handleConnection(conn net.Conn) {
 
 		graph.Communities = append(graph.Communities, community)
 	}
+
 	/* 	c := &Community{make(map[int]*Vertex)}
 	   	fmt.Println(graph.Vertices[1])
 	   	c.Vertices[1] = graph.Vertices[1]
@@ -771,6 +772,8 @@ func handleConnection(conn net.Conn) {
 	// ############################################################################################################
 	WCC := graph.Wcc()
 	var newWCC float64
+	listWCC := make([]float64, 0)
+	listWCC = append(listWCC, WCC)
 	newWCC = 0
 	const numWorkers = 12
 	jobs := make(chan int, 2*numWorkers)
@@ -832,12 +835,54 @@ func handleConnection(conn net.Conn) {
 		graph.UpdateCommunities()
 
 		WCC = graph.Wcc()
+
 		fmt.Println("WCC : ", WCC, " old WCC : ", newWCC)
 		fmt.Println("Time to calculate WCC : ", time.Since(startTime))
 		fmt.Println("Conditions : ", (WCC-newWCC)/newWCC, " Precision : ", precision)
+		startTime = time.Now()
+		for _, indivWcc := range listWCC {
+			if indivWcc == WCC || (WCC-newWCC) < 0 {
+				fmt.Println("Stabilisation")
+				for key := range graph.Vertices {
+					n, mouvement, c := graph.bestMovement(key)
+					if mouvement == MOVE {
+						sourceC := graph.GetCommunity(n)
+						destC := c
+						if sourceC != nil {
+							delete(sourceC.Vertices, n)
+						}
+						if destC != nil {
+							destC.Vertices[n] = graph.Vertices[n]
+						}
+						graph.Vertices[n].community = destC
+					} else if mouvement == REMOVE {
+						community := graph.GetCommunity(n)
+						if community != nil {
+							delete(community.Vertices, n)
+						}
+						community = &Community{make(map[int]*Vertex)}
+						community.Vertices[n] = graph.Vertices[n]
+						graph.Vertices[n].community = community
+						graph.Communities = append(graph.Communities, community)
+					}
+				}
+				graph.UpdateCommunities()
+				listWCC = append(listWCC, WCC)
+				if len(listWCC) > 10 {
+					listWCC = listWCC[1:]
+				}
+				WCC = graph.Wcc()
+			}
+		}
+		fmt.Println("Time to stabilise : ", time.Since(startTime))
 
+		listWCC = append(listWCC, WCC)
+		if len(listWCC) > 10 {
+			listWCC = listWCC[1:]
+		}
+		WriteCommunityInFile(graph, "communities.txt")
 	}
-	WriteCommunityInFile(graph, "communities.txt")
+
 	//listCommunities := ParseCommunityFile("communities.txt")
 
 	/* for key, c := range listCommunities {
@@ -855,13 +900,13 @@ func handleConnection(conn net.Conn) {
 }
 
 func main() {
-	listener, err := net.Listen("tcp", ":5827")
+	listener, err := net.Listen("tcp", ":5828")
 	if err != nil {
 		fmt.Println("Erreur dans le démarrage du serveur:", err)
 		return
 	}
 	defer listener.Close()
-	fmt.Println("Server is listening on port 5827...")
+	fmt.Println("Server is listening on port 5828...")
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
