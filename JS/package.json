@@ -16,5 +16,8 @@
   "bugs": {
     "url": "https://github.com/Byllie/ProjetELP/issues"
   },
-  "homepage": "https://github.com/Byllie/ProjetELP#readme"
+  "homepage": "https://github.com/Byllie/ProjetELP#readme",
+  "dependencies": {
+    "prompt": "^1.3.0"
+  }
 }

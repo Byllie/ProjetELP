@@ -1,3 +1,5 @@
 #Ignore tout les fichiers de dataset et de profilage
 *.txt
 *.ezview
+# Ignore les modules node
+node_modules
