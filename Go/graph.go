@@ -686,7 +686,7 @@ func handleConnection(conn net.Conn) {
 	//filePath := "test_graph5.txt"
 	graph := NewGraphFromTCP(conn)
 	//graph := NewGraphFromFile(filePath)
-	precision := 0.0001
+	precision := 0.001
 	max_index := 0
 	for key, vertex := range graph.Vertices {
 		vertex.CC = graph.ClusteringCoeficient(key)
