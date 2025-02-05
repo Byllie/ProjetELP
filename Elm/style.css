@@ -33,7 +33,7 @@ h1 {
 textarea {
     width: 100%;
     padding: 1em;
-    margin: 1.5em
+    margin: 1.5em 0;
     border: 1px solid #ccc;
     border-radius: 0.5em;
     font-size: 1.2rem;
@@ -71,6 +71,35 @@ svg {
     height: auto;
 }
 
+
+.examples {
+    margin-top: 2rem;
+    text-align: left;
+    background-color: #f8f9fa;
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.examples h2 {
+    font-size: 1.5rem;
+    color: #444;
+    margin-bottom: 1rem;
+}
+
+.examples pre {
+    background-color: #fff;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    border: 1px solid #eee;
+    white-space: pre-wrap;
+    word-break: keep-all;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    margin: 0;
+}
+
 @media (max-width: 768px) {
     .container {
         width: 95vw;
@@ -91,5 +120,18 @@ svg {
         font-size: 1rem;
         padding: 0.8rem;
         width: 100%;
+    }
+
+    .examples {
+        padding: 1rem;
+    }
+
+    .examples h2 {
+        font-size: 1.2rem;
+    }
+
+    .examples pre {
+        font-size: 0.8rem;
+        padding: 0.8rem;
     }
 }
