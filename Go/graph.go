@@ -29,7 +29,6 @@ type Vertex struct {
 	CC                 float32
 	Triangles          int
 	NbVerticesTriangle int
-	ActualWCC          float64
 }
 type ResultBestMouvement struct {
 	node      int
@@ -37,7 +36,7 @@ type ResultBestMouvement struct {
 	community *Community
 }
 
-func removeCommunity(graph *Graph, key int) {
+func (graph *Graph) removeCommunity(key int) {
 	community := graph.Communities[key]
 	if len(community.Vertices) != 0 {
 		panic("Trying to remove a non empty community")
@@ -60,10 +59,10 @@ func (graph *Graph) GetCommunity(node int) *Community {
 
 func (graph *Graph) AddEdge(srcKey, destKey int) {
 	if _, ok := graph.Vertices[srcKey]; !ok {
-		graph.Vertices[srcKey] = &Vertex{len(graph.Vertices) + 1, make(map[int]*Vertex), nil, -1, 0, 0, -1}
+		graph.Vertices[srcKey] = &Vertex{len(graph.Vertices) + 1, make(map[int]*Vertex), nil, -1, 0, 0}
 	}
 	if _, ok := graph.Vertices[destKey]; !ok {
-		graph.Vertices[destKey] = &Vertex{len(graph.Vertices) + 1, make(map[int]*Vertex), nil, -1, 0, 0, -1}
+		graph.Vertices[destKey] = &Vertex{len(graph.Vertices) + 1, make(map[int]*Vertex), nil, -1, 0, 0}
 	}
 
 	graph.Vertices[srcKey].Edges[destKey] = graph.Vertices[destKey]
@@ -205,8 +204,13 @@ func (graph *Graph) RemoveEdgesWithoutTriangles() {
 	for src, vertex := range graph.Vertices {
 		for dest := range vertex.Edges {
 			if src < dest {
-				// TODO : Optimiser ça (ne pas compter tout les triangles mais break des qu'il y en a 1)
-				if graph.CountTrianglesEdge(src, dest) == 0 {
+				triangle := false
+				for neighbor := range graph.Vertices[src].Edges {
+					if neighbor != dest && graph.Vertices[dest].Edges[neighbor] != nil {
+						triangle = true
+					}
+				}
+				if !triangle {
 					delete(graph.Vertices[src].Edges, dest)
 					delete(graph.Vertices[dest].Edges, src)
 				}
@@ -285,7 +289,6 @@ func (graph *Graph) WccNode(node int, c *Community) float64 {
 
 	return res
 }
-
 func (graph *Graph) WccCommunity(c *Community) float64 {
 	if len(c.Vertices) == 0 {
 		return 0
@@ -301,7 +304,6 @@ func (graph *Graph) WccCommunity(c *Community) float64 {
 	}
 	return avg / float64(len(c.Vertices))
 }
-
 func (graph *Graph) Wcc() float64 {
 	avg := float64(0)
 	for _, v := range graph.Vertices {
@@ -359,7 +361,6 @@ func (graph *Graph) WccI(node int, c *Community) float64 {
 	}
 	return 1 / float64(V) * (float64(len(newC.Vertices))*graph.WccCommunity(newC) - graph.WccCommunity(c)*float64(len(c.Vertices))) */
 }
-
 func (graph *Graph) WccR(node int, c *Community) float64 {
 	// La meme chose que WccI mais en enlevant le noeud node de la communauté c
 
@@ -407,6 +408,7 @@ func (graph *Graph) WccT(node int, source Community, dest Community) float64 {
 	// maybe it works
 	return graph.WccI(node, &dest) + graph.WccR(node, &source)
 }
+
 func NewGraphFromTCP(conn net.Conn) *Graph {
 	graph := &Graph{Vertices: make(map[int]*Vertex), Communities: []*Community{}}
 	scanner := bufio.NewScanner(conn)
@@ -426,7 +428,9 @@ func NewGraphFromTCP(conn net.Conn) *Graph {
 		destKey, _ := strconv.Atoi(parts[1])
 
 		graph.AddEdge(srcKey, destKey)
+		fmt.Println("Edge added")
 	}
+	fmt.Println("Graph created")
 	for k, v := range graph.Vertices {
 		v.index = k
 	}
@@ -515,7 +519,7 @@ func WriteCommunityInFile(graph *Graph, filePath string) {
 	for key, c := range graph.Communities {
 		if c != nil {
 			file.WriteString("Community\t" + strconv.Itoa(key) + "\tVertices\t" + strconv.Itoa(len(c.Vertices)) + "\n")
-			for key2, _ := range c.Vertices {
+			for key2 := range c.Vertices {
 				file.WriteString("Node\t" + strconv.Itoa(key2) + "\n")
 			}
 		}
@@ -618,7 +622,7 @@ func (graph *Graph) UpdateCommunities() {
 	for i := 0; i < n; i++ {
 		community := graph.Communities[i]
 		if len(community.Vertices) == 0 {
-			removeCommunity(graph, i)
+			graph.removeCommunity(i)
 			n--
 		}
 	}
@@ -659,6 +663,7 @@ func handleConnection(conn net.Conn) {
 
 	//filePath := "com-dblp.ungraph.txt"
 	filePath := "com-amazon.ungraph.txt"
+	//filePath := "com-youtube.ungraph.txt"
 	//filePath := "test_graph.txt"
 	//filePath := "test_graph copy.txt"
 	//filePath := "test_graph5.txt"
@@ -677,36 +682,11 @@ func handleConnection(conn net.Conn) {
 
 	}
 
-	for key, vertex := range graph.Vertices {
-		vertex.CC = graph.ClusteringCoeficient(key)
-	}
-	avgCC := float32(0)
-	for _, vertex := range graph.Vertices {
-		avgCC += vertex.CC
-	}
-	avgCC /= float32(len(graph.Vertices))
-	fmt.Println("Average Clustering Coeficient : ", avgCC)
-
-	/*
-		Average Clustering Coeficient :  0.3967 for com-amazon.ungraph.txt and is 0.3967 if you don't remove edges without triangles
-	*/
-	// ######################################################################################################################
-
 	graph.RemoveEdgesWithoutTriangles()
+	fmt.Println("Preprocessing done")
 	for key, vertex := range graph.Vertices {
 		vertex.CC = graph.ClusteringCoeficient(key)
 	}
-	// ######################################################################################################################
-	// Tests with http://snap.stanford.edu/data/index.html#communities datasets
-	// ######################################################################################################################
-	/* sumTriangles := 0
-	for key := range graph.Vertices {
-		sumTriangles += graph.CountTrianglesVertices(key)
-	}
-	fmt.Println("Triangles : ", sumTriangles/3)
-	Supposed to be 667129 for com-amazon.ungraph.txt and is 667129
-	*/
-	// ######################################################################################################################
 
 	SortedVerticesByCC := graph.SortVerticesByCC()
 
@@ -732,41 +712,6 @@ func handleConnection(conn net.Conn) {
 		graph.Communities = append(graph.Communities, community)
 	}
 
-	/* 	c := &Community{make(map[int]*Vertex)}
-	   	fmt.Println(graph.Vertices[1])
-	   	c.Vertices[1] = graph.Vertices[1]
-	   	graph.Vertices[1].community = c
-	   	graph.Communities = append(graph.Communities, c)
-	   	delete(graph.Communities[0].Vertices, 1)
-	   	c.Vertices[2] = graph.Vertices[2]
-	   	graph.Vertices[2].community = c
-	   	delete(graph.Communities[0].Vertices, 2)
-	   	c.Vertices[3] = graph.Vertices[3]
-	   	graph.Vertices[3].community = c
-	   	delete(graph.Communities[0].Vertices, 3) */
-
-	/* for c, community := range graph.Communities {
-		fmt.Println("Community : ", c, " Vertices : ", len(community.Vertices))
-		for key, _ := range community.Vertices {
-			fmt.Println("Node : ", key)
-		}
-	} */
-	// ######################################################################################################################
-	// Tests of vt function for optimization
-	// ######################################################################################################################
-	/* 	startTime := time.Now()
-	n := 30
-	for i := 0; i < n; i++ {
-		for key, _ := range graph.Vertices {
-			graph.vt(key)
-		}
-	}
-	fmt.Println("Length of graph.Vertices : ", len(graph.Vertices))
-	fmt.Println("Time to calculate vt : ", time.Since(startTime)/time.Duration(n))
-	fmt.Println("Average time to calculate vt : ", time.Since(startTime)/time.Duration(n*len(graph.Vertices)))
-	*/
-	// ######################################################################################################################
-
 	// ############################################################################################################
 	// Main loop
 	// ############################################################################################################
@@ -775,15 +720,24 @@ func handleConnection(conn net.Conn) {
 	listWCC := make([]float64, 0)
 	listWCC = append(listWCC, WCC)
 	newWCC = 0
-	const numWorkers = 12
+	const numWorkers = 8
 	jobs := make(chan int, 2*numWorkers)
 	results := make(chan ResultBestMouvement, 2*numWorkers)
 	for w := 1; w <= numWorkers; w++ {
 		go worker(w, jobs, results, graph)
 	}
+	startTotalTime := time.Now()
 	for math.Abs((WCC-newWCC)/newWCC) > precision {
 		startTime := time.Now()
 		var listMovement = make([]int, max_index+1)
+		oldCommunities := make([]*Community, len(graph.Communities))
+
+		for i, c := range graph.Communities {
+			oldCommunities[i] = &Community{make(map[int]*Vertex)}
+			for key, value := range c.Vertices {
+				oldCommunities[i].Vertices[key] = value
+			}
+		}
 		fmt.Println("New iteration")
 		fmt.Println("WCC : ", WCC)
 		fmt.Println("Nombre de communautés : ", len(graph.Communities))
@@ -801,13 +755,11 @@ func handleConnection(conn net.Conn) {
 			}
 		}
 		fmt.Println("Applying movements")
-		/* fmt.Println("Movements : ", listMovement)
-		fmt.Println("Destinations : ", listDest) */
 
 		for key, movement := range listMovement {
 
 			if movement == REMOVE {
-				// Remove node from community
+				// Remove node from communityenzor@enzo-83dd
 				community := graph.GetCommunity(key)
 				if community != nil {
 					delete(community.Vertices, key)
@@ -840,41 +792,56 @@ func handleConnection(conn net.Conn) {
 		fmt.Println("Time to calculate WCC : ", time.Since(startTime))
 		fmt.Println("Conditions : ", (WCC-newWCC)/newWCC, " Precision : ", precision)
 		startTime = time.Now()
+		var stabilise = false
 		for _, indivWcc := range listWCC {
 			if indivWcc == WCC || (WCC-newWCC) < 0 {
-				fmt.Println("Stabilisation")
-				for key := range graph.Vertices {
-					n, mouvement, c := graph.bestMovement(key)
-					if mouvement == MOVE {
-						sourceC := graph.GetCommunity(n)
-						destC := c
-						if sourceC != nil {
-							delete(sourceC.Vertices, n)
-						}
-						if destC != nil {
-							destC.Vertices[n] = graph.Vertices[n]
-						}
-						graph.Vertices[n].community = destC
-					} else if mouvement == REMOVE {
-						community := graph.GetCommunity(n)
-						if community != nil {
-							delete(community.Vertices, n)
-						}
-						community = &Community{make(map[int]*Vertex)}
-						community.Vertices[n] = graph.Vertices[n]
-						graph.Vertices[n].community = community
-						graph.Communities = append(graph.Communities, community)
-					}
-				}
-				graph.UpdateCommunities()
-				listWCC = append(listWCC, WCC)
-				if len(listWCC) > 10 {
-					listWCC = listWCC[1:]
-				}
-				WCC = graph.Wcc()
+
+				stabilise = true
+				break
 			}
 		}
-		fmt.Println("Time to stabilise : ", time.Since(startTime))
+
+		if stabilise {
+			graph.Communities = oldCommunities
+			for _, c := range graph.Communities {
+				for key2 := range c.Vertices {
+					graph.Vertices[key2].community = c
+				}
+
+			}
+			fmt.Println("Stabilisation")
+			for key := range graph.Vertices {
+				n, mouvement, c := graph.bestMovement(key)
+				if mouvement == MOVE {
+					sourceC := graph.GetCommunity(n)
+					destC := c
+					if sourceC != nil {
+						delete(sourceC.Vertices, n)
+					}
+					if destC != nil {
+						destC.Vertices[n] = graph.Vertices[n]
+					}
+					graph.Vertices[n].community = destC
+				} else if mouvement == REMOVE {
+					community := graph.GetCommunity(n)
+					if community != nil {
+						delete(community.Vertices, n)
+					}
+					community = &Community{make(map[int]*Vertex)}
+					community.Vertices[n] = graph.Vertices[n]
+					graph.Vertices[n].community = community
+					graph.Communities = append(graph.Communities, community)
+				}
+			}
+			graph.UpdateCommunities()
+			listWCC = append(listWCC, WCC)
+			if len(listWCC) > 10 {
+				listWCC = listWCC[1:]
+			}
+			WCC = graph.Wcc()
+			fmt.Println("WCC : ", WCC)
+			fmt.Println("Time to stabilise : ", time.Since(startTime))
+		}
 
 		listWCC = append(listWCC, WCC)
 		if len(listWCC) > 10 {
@@ -883,20 +850,7 @@ func handleConnection(conn net.Conn) {
 		WriteCommunityInFile(graph, "communities.txt")
 	}
 
-	//listCommunities := ParseCommunityFile("communities.txt")
-
-	/* for key, c := range listCommunities {
-		fmt.Println("Community : ", key, " Vertices : ", len(c.Vertices))
-		for key2, _ := range c.Vertices {
-			fmt.Println("Node : ", key2)
-		}
-	} */
-	/* for key, c := range graph.Communities {
-		for key2, _ := range c.Vertices {
-			fmt.Println("Node : ", key2, " Community : ", key, " WccNode : ", graph.WccNode(key2, c))
-		}
-	} */
-	fmt.Println("Done")
+	fmt.Println("Done in : ", time.Since(startTotalTime), " with ", numWorkers, " workers")
 }
 
 func main() {
