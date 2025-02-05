@@ -5,7 +5,7 @@ var Joueur = require('./joueur');
 
 // const HOST = 'localhost';
 // const PORT = 3080;
-
+console.log(this);
 nombreJoueurs = 5;
 const Joueurs = [];
 for (let i = 0; i < nombreJoueurs; i++) {
@@ -21,6 +21,7 @@ for (let i = 0; i < nombreJoueurs; i++) {
     console.log("Joueur " + Joueurs[i].getNom());
     Joueurs[i].askWord();
     console.log(Joueurs[i].getWord());
+    
 }
 
 

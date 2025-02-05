@@ -1,4 +1,4 @@
-
+var prompt = require('prompt');
 
 class Joueur {
     constructor() {
@@ -28,7 +28,15 @@ class Joueur {
         this.word = word;
     }
     askWord() {
-        this.word = prompt("Entrez un mot");
+        prompt.start();
+        prompt.get(['word'], (err, result) => {
+            if (err) {
+                console.log(err);
+            } else {
+                this.setWord(result.word);
+            }
+        });
+
     }
 }
 
