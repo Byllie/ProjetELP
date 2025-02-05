@@ -1,0 +1,20 @@
+{
+  "name": "justone",
+  "version": "1.0.0",
+  "description": "Projet javascript (https://github.com/sfrenot/javascript/blob/master/projet3/Readme.md)",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Byllie/ProjetELP.git"
+  },
+  "author": "Gwendal VANTOUROUT, Enzo RIVIERE",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Byllie/ProjetELP/issues"
+  },
+  "homepage": "https://github.com/Byllie/ProjetELP#readme"
+}
