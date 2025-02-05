@@ -658,12 +658,12 @@ func handleConnection(conn net.Conn) {
 	defer pprof.StopCPUProfile()
 
 	//filePath := "com-dblp.ungraph.txt"
-	filePath := "com-amazon.ungraph.txt"
+	//filePath := "com-amazon.ungraph.txt"
 	//filePath := "test_graph.txt"
 	//filePath := "test_graph copy.txt"
 	//filePath := "test_graph5.txt"
-	//graph := NewGraphFromTCP(conn)
-	graph := NewGraphFromFile(filePath)
+	graph := NewGraphFromTCP(conn)
+	//graph := NewGraphFromFile(filePath)
 	precision := 0.0001
 	max_index := 0
 	for key, vertex := range graph.Vertices {
@@ -775,7 +775,7 @@ func handleConnection(conn net.Conn) {
 	listWCC := make([]float64, 0)
 	listWCC = append(listWCC, WCC)
 	newWCC = 0
-	const numWorkers = 12
+	const numWorkers = 16
 	jobs := make(chan int, 2*numWorkers)
 	results := make(chan ResultBestMouvement, 2*numWorkers)
 	for w := 1; w <= numWorkers; w++ {
