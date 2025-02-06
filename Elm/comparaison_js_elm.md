@@ -39,23 +39,24 @@ En JS, les types ne sont pas imposés, `Bounds.xmin="Toto"` est valide
 		        |. symbol "]"
 Tandis qu'en javascript, le programme est moins lisible, et nécessite des appelles de fonctions imbriqués
 
-	var $author$project$ParseTcTurtle$parseProgram = A2(
-		$elm$parser$Parser$keeper,
-		A2(
-			$elm$parser$Parser$ignorer,
-			A2(
-				$elm$parser$Parser$ignorer,
-				$elm$parser$Parser$succeed($elm$core$Basics$identity),
-				$elm$parser$Parser$symbol('[')),
-			$elm$parser$Parser$spaces),
-		A2(
-			$elm$parser$Parser$ignorer,
-			A2(
-				$elm$parser$Parser$ignorer,
-				A2($elm$parser$Parser$ignorer, $author$project$ParseTcTurtle$parseInstructions, $elm$parser$Parser$spaces),
-				$elm$parser$Parser$symbol(']')),
-			$elm$parser$Parser$end));
-	
+		var $author$project$ParseTcTurtle$parseProgram = A2(  
+			$elm$parser$Parser$keeper,  
+			A2(  
+				$elm$parser$Parser$ignorer,  
+				A2(  
+					$elm$parser$Parser$ignorer,  
+					$elm$parser$Parser$succeed($elm$core$Basics$identity),  
+					$elm$parser$Parser$symbol('[')),  
+				$elm$parser$Parser$spaces),  
+			A2(  
+				$elm$parser$Parser$ignorer,  
+				A2(  
+					$elm$parser$Parser$ignorer,  
+					A2($elm$parser$Parser$ignorer
+					,$author$project$ParseTcTurtle$parseInstructions,$elm$parser$Parser$spaces),  
+					$elm$parser$Parser$symbol(']')),  
+				$elm$parser$Parser$end));
+
     
 5.  **Gestion des erreurs**
     En ELM, il n'y a pas à se soucier de la gestion des erreurs, il n'y a pas d'effet de bord. En JS, on retrouve la structure `try catch`   (ligne 6258 de main.js)
