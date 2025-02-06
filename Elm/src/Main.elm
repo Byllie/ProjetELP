@@ -71,7 +71,7 @@ view model =
 [Repeat 8 [Left 45, Repeat 6 [Repeat 90 [Forward 1, Left 2], Left 90]]]"""
                 ]
             , p []
-                [ text "Amélioration par rapport au sujet : Le dessin ne peut pas sortir du cadre (taille variable) et il occupe un maximum de place." ]
+                [ text "Amélioration par rapport au sujet : Le dessin ne peut pas sortir du cadre (taille variable) et il occupe un maximum de place (avec une marge sinon c'est moche)." ]
             ]
         ]
 

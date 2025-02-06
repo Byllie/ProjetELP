@@ -66,8 +66,8 @@ display points =
         w = bounds.xmax - bounds.xmin
         h = bounds.ymax - bounds.ymin
 
-        -- Ajoute une marge de 20% autour des limites
-        padding = w * 0.2
+        -- Ajoute une marge de 10% autour des limites
+        padding = w * 0.1
 
         -- Définit la viewBox pour le SVG, en incluant la marge
         viewBoxValue =

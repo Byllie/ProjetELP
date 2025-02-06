@@ -6522,7 +6522,7 @@ var $author$project$DrawTcTurtle$display = function (points) {
 	var bounds = $author$project$DrawTcTurtle$findBounds(points);
 	var h = bounds.ymax - bounds.ymin;
 	var w = bounds.xmax - bounds.xmin;
-	var padding = w * 0.2;
+	var padding = w * 0.1;
 	var viewBoxValue = $elm$core$String$fromFloat(bounds.xmin - padding) + (' ' + ($elm$core$String$fromFloat(bounds.ymin - padding) + (' ' + ($elm$core$String$fromFloat(w + (2 * padding)) + (' ' + $elm$core$String$fromFloat(h + (2 * padding)))))));
 	return A2(
 		$elm$svg$Svg$svg,
@@ -6673,7 +6673,7 @@ var $author$project$Main$view = function (model) {
 						_List_Nil,
 						_List_fromArray(
 							[
-								$elm$html$Html$text('Amélioration par rapport au sujet : Le dessin ne peut pas sortir du cadre (taille variable) et il occupe un maximum de place.')
+								$elm$html$Html$text('Amélioration par rapport au sujet : Le dessin ne peut pas sortir du cadre (taille variable) et il occupe un maximum de place (avec une marge sinon c\'est moche).')
 							]))
 					]))
 			]));

@@ -1,3 +1,4 @@
+
 **Comparaison entre Elm et JavaScript dans le contexte du projet**
 
 
@@ -36,7 +37,7 @@ En JS, les types ne sont pas imposés, `Bounds.xmin="Toto"` est valide
 		        |= parseInstructions
 		        |. spaces
 		        |. symbol "]"
-Tandis qu'en javascript, le programme est moins lisible, et necessite des appelles de fonctions imbriqués
+Tandis qu'en javascript, le programme est moins lisible, et nécessite des appelles de fonctions imbriqués
 
 	var $author$project$ParseTcTurtle$parseProgram = A2(
 		$elm$parser$Parser$keeper,
@@ -57,14 +58,18 @@ Tandis qu'en javascript, le programme est moins lisible, et necessite des appell
 	
     
 5.  **Gestion des erreurs**
-    En ELM, il n'y a pas à se soucier de la gestion des erreurs, il n'y a pas d'effet de bord. En JS, on retrouve la strucure `try catch`   (ligne 6258 de main.js)
+    En ELM, il n'y a pas à se soucier de la gestion des erreurs, il n'y a pas d'effet de bord. En JS, on retrouve la structure `try catch`   (ligne 6258 de main.js)
 
     
 6.  **Accès au DOM** 
    En JavaScript, on manipule directement le DOM via getElementByID,
-   En Elm, on n'accéde pas directement au DOM. Tout passe par un modèle de "Virtual DOM". Par exemple, au lieu de modifier directement un élément, on met à jour le modèle, et la vue est reconstruite automatiquement
+   En Elm, on n’accède pas directement au DOM. Tout passe par un modèle de "Virtual DOM". Par exemple, au lieu de modifier directement un élément, on met à jour le modèle, et la vue est reconstruite automatiquement
 
-7. **Gestion des êvenements**
+7. **Gestion des événements**
+Dans le JS compilé par elm , les événements sont gérés via: `onClick`, `onInput` avec des callbacks. 
+En ELM, les événements sont gérés via le système de messages et de mise à jour. Par exemple, pour un champ texte interactif :
+
+		input [ onInput UpdateText ] []
 
 **Conclusion** 
 Dans le cadre de ce projet, Elm offre une approche plus robuste et structurée pour gérer l'interface et l'interprétation des commandes (parser). JavaScript emmène  une complexité accrue dans la gestion des erreurs et du code asynchrone (beaucoup de callback dans le code compilé pour géré les events). Le choix de ELM fait sens pour ce projet en particulier pour le parser et la gestion du DOM
