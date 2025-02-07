@@ -1,0 +1,56 @@
+a doit deviné : gorge
+	 a proposé : 
+	 a proposé : 
+	 a proposé : 
+	 a proposé : 
+	 a deviné : a
+
+ doit deviné : empressé
+	a a proposé : 
+	 a proposé : 
+	 a proposé : 
+	 a proposé : 
+	 a deviné : 
+
+ doit deviné : boulonner
+	a a proposé : 
+	 a proposé : 
+	 a proposé : 
+	 a proposé : 
+	 a deviné : 
+
+ doit deviné : réalisable
+	a a proposé : 
+	 a proposé : 
+	 a proposé : 
+	 a proposé : 
+	réalisable a deviné : 
+
+ doit deviné : relancer
+	a a proposé : 
+	 a proposé : 
+	 a proposé : 
+	 a proposé : 
+	relancer a deviné : 
+
+a doit deviné : riper
+	 a proposé : 
+	 a proposé : 
+	 a proposé : 
+	 a proposé : 
+	 a deviné : a
+
+ doit deviné : fameux
+	a a proposé : 
+	 a proposé : 
+	 a proposé : 
+	 a proposé : 
+	 a deviné : 
+
+ doit deviné : romains
+	a a proposé : 
+	 a proposé : 
+	 a proposé : 
+	 a proposé : 
+	 a deviné : 
+
