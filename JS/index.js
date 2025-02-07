@@ -1,5 +1,8 @@
 const { Joueur, rl } = require('./joueur');
 const { choisirMotAleatoire } = require('./dico');
+const { writeIndice , writeTour, writeFinDeTour } = require('./log');
+const fs = require('fs')
+
 
 const nombreJoueurs = 5;
 const Joueurs = [];
@@ -37,6 +40,14 @@ function afficherMessageScore(score) {
 }
 
 function commencerJeu(tour = 0, nb_manche, score) {
+    if (tour === 0) {
+        fs.unlink('./log.txt', (err) => {
+            if (err) {
+                console.error(err)
+                return
+            }
+        });
+    }
     if (tour >= nb_manche) {
         console.log("Fin du jeu !");
         afficherMessageScore(score);  // Affiche le message en fonction du score
@@ -51,14 +62,16 @@ function commencerJeu(tour = 0, nb_manche, score) {
         console.log(`${joueurADeviner.getNom()} doit deviner le mot !`);
 
         const indices = [];
-
+        writeTour(motATrouver, joueurADeviner.getNom())
         function demanderIndice(i = 0) {
             if (i < nombreJoueurs) {
-                if (i === tour) {
+                if (i === tour%nombreJoueurs) {
                     demanderIndice(i + 1);
                 } else {
-                    rl.question(`Indice de ${Joueurs[i].getNom()}: `, (answer) => {
+                    nom = Joueurs[i].getNom();
+                    rl.question(`Indice de ${nom}: `, (answer) => {
                         indices.push(answer);
+                        writeIndice(answer,nom);
                         demanderIndice(i + 1);
                     });
                 }
@@ -66,9 +79,25 @@ function commencerJeu(tour = 0, nb_manche, score) {
                 traiterIndices();
             }
         }
-
+        
         function traiterIndices() {
-            const uniqueIndices = indices.filter((indice, _, self) => self.indexOf(indice) === self.lastIndexOf(indice));
+            const uniqueIndices = [];
+            for (let i = 0; i < indices.length; i++) {
+                let isUnique = true;
+                for (let j = 0; j < indices.length; j++) {
+                    if (i !== j && indices[i] === indices[j]) {
+                        isUnique = false;
+                        break;
+                    }
+                    if (indices[i] === motATrouver) {
+                        isUnique = false;
+                        break;
+                    }
+                }
+                if (isUnique) {
+                    uniqueIndices.push(indices[i]);
+                }
+            }
 
             console.log("\n Indices retenus :");
             if (uniqueIndices.length === 0) {
@@ -85,8 +114,14 @@ function commencerJeu(tour = 0, nb_manche, score) {
                     console.log(`Mauvaise réponse ! Le mot était : ${motATrouver}`);
                     nb_manche = nb_manche - 1;
                 }
+                writeFinDeTour(joueurADeviner.getNom(), reponse);
+                console.log(`tour : ${tour}`);
+                console.log(`nb_manche : ${nb_manche}`);
+                if (tour === nb_manche && score > 0) {
+                    score = score -  1;
+                }
                 console.log(`Score actuel : ${score}`);
-                console.log(`Manches restantes : ${nb_manche - tour - 1}`);
+                console.log(`Cartes restantes : ${nb_manche - tour - 1}`);
                 commencerJeu(tour + 1, nb_manche, score);
             });
         }
