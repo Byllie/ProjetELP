@@ -6373,10 +6373,11 @@ var $author$project$Main$update = F2(
 				model,
 				{text: newText});
 		} else {
-			var parsedResult = $author$project$ParseTcTurtle$read(model.text);
 			return _Utils_update(
 				model,
-				{result: parsedResult});
+				{
+					result: $author$project$ParseTcTurtle$read(model.text)
+				});
 		}
 	});
 var $author$project$Main$ParseCommand = {$: 'ParseCommand'};
@@ -6411,6 +6412,64 @@ var $elm$core$List$drop = F2(
 			}
 		}
 	});
+var $elm$core$List$maximum = function (list) {
+	if (list.b) {
+		var x = list.a;
+		var xs = list.b;
+		return $elm$core$Maybe$Just(
+			A3($elm$core$List$foldl, $elm$core$Basics$max, x, xs));
+	} else {
+		return $elm$core$Maybe$Nothing;
+	}
+};
+var $elm$core$Basics$min = F2(
+	function (x, y) {
+		return (_Utils_cmp(x, y) < 0) ? x : y;
+	});
+var $elm$core$List$minimum = function (list) {
+	if (list.b) {
+		var x = list.a;
+		var xs = list.b;
+		return $elm$core$Maybe$Just(
+			A3($elm$core$List$foldl, $elm$core$Basics$min, x, xs));
+	} else {
+		return $elm$core$Maybe$Nothing;
+	}
+};
+var $elm$core$Tuple$second = function (_v0) {
+	var y = _v0.b;
+	return y;
+};
+var $elm$core$Maybe$withDefault = F2(
+	function (_default, maybe) {
+		if (maybe.$ === 'Just') {
+			var value = maybe.a;
+			return value;
+		} else {
+			return _default;
+		}
+	});
+var $author$project$DrawTcTurtle$findBounds = function (points) {
+	var ys = A2($elm$core$List$map, $elm$core$Tuple$second, points);
+	var ymin = A2(
+		$elm$core$Maybe$withDefault,
+		0,
+		$elm$core$List$minimum(ys));
+	var ymax = A2(
+		$elm$core$Maybe$withDefault,
+		0,
+		$elm$core$List$maximum(ys));
+	var xs = A2($elm$core$List$map, $elm$core$Tuple$first, points);
+	var xmin = A2(
+		$elm$core$Maybe$withDefault,
+		0,
+		$elm$core$List$minimum(xs));
+	var xmax = A2(
+		$elm$core$Maybe$withDefault,
+		0,
+		$elm$core$List$maximum(xs));
+	return {xmax: xmax, xmin: xmin, ymax: ymax, ymin: ymin};
+};
 var $elm$core$String$fromFloat = _String_fromNumber;
 var $elm$svg$Svg$Attributes$height = _VirtualDom_attribute('height');
 var $elm$svg$Svg$trustedNode = _VirtualDom_nodeNS('http://www.w3.org/2000/svg');
@@ -6419,10 +6478,6 @@ var $elm$core$Tuple$pair = F2(
 	function (a, b) {
 		return _Utils_Tuple2(a, b);
 	});
-var $elm$core$Tuple$second = function (_v0) {
-	var y = _v0.b;
-	return y;
-};
 var $elm$svg$Svg$Attributes$stroke = _VirtualDom_attribute('stroke');
 var $elm$svg$Svg$Attributes$strokeWidth = _VirtualDom_attribute('stroke-width');
 var $elm$svg$Svg$svg = $elm$svg$Svg$trustedNode('svg');
@@ -6464,11 +6519,16 @@ var $author$project$DrawTcTurtle$display = function (points) {
 				A2($elm$core$List$drop, 1, points));
 		}
 	}();
+	var bounds = $author$project$DrawTcTurtle$findBounds(points);
+	var h = bounds.ymax - bounds.ymin;
+	var w = bounds.xmax - bounds.xmin;
+	var padding = w * 0.1;
+	var viewBoxValue = $elm$core$String$fromFloat(bounds.xmin - padding) + (' ' + ($elm$core$String$fromFloat(bounds.ymin - padding) + (' ' + ($elm$core$String$fromFloat(w + (2 * padding)) + (' ' + $elm$core$String$fromFloat(h + (2 * padding)))))));
 	return A2(
 		$elm$svg$Svg$svg,
 		_List_fromArray(
 			[
-				$elm$svg$Svg$Attributes$viewBox('-250 -250 500 500'),
+				$elm$svg$Svg$Attributes$viewBox(viewBoxValue),
 				$elm$svg$Svg$Attributes$width('500'),
 				$elm$svg$Svg$Attributes$height('500')
 			]),
@@ -6476,6 +6536,7 @@ var $author$project$DrawTcTurtle$display = function (points) {
 };
 var $elm$html$Html$div = _VirtualDom_node('div');
 var $elm$html$Html$h1 = _VirtualDom_node('h1');
+var $elm$html$Html$h2 = _VirtualDom_node('h2');
 var $elm$virtual_dom$VirtualDom$Normal = function (a) {
 	return {$: 'Normal', a: a};
 };
@@ -6526,7 +6587,11 @@ var $elm$html$Html$Events$onInput = function (tagger) {
 			$elm$html$Html$Events$alwaysStop,
 			A2($elm$json$Json$Decode$map, tagger, $elm$html$Html$Events$targetValue)));
 };
+var $elm$html$Html$p = _VirtualDom_node('p');
 var $elm$html$Html$Attributes$placeholder = $elm$html$Html$Attributes$stringProperty('placeholder');
+var $elm$html$Html$pre = _VirtualDom_node('pre');
+var $elm$virtual_dom$VirtualDom$style = _VirtualDom_style;
+var $elm$html$Html$Attributes$style = $elm$virtual_dom$VirtualDom$style;
 var $elm$virtual_dom$VirtualDom$text = _VirtualDom_text;
 var $elm$html$Html$text = $elm$virtual_dom$VirtualDom$text;
 var $elm$html$Html$textarea = _VirtualDom_node('textarea');
@@ -6579,7 +6644,38 @@ var $author$project$Main$view = function (model) {
 					[
 						$elm$html$Html$text('Dessiner')
 					])),
-				$author$project$DrawTcTurtle$display(model.result)
+				$author$project$DrawTcTurtle$display(model.result),
+				A2(
+				$elm$html$Html$div,
+				_List_fromArray(
+					[
+						$elm$html$Html$Attributes$class('examples'),
+						A2($elm$html$Html$Attributes$style, 'margin-top', '20px')
+					]),
+				_List_fromArray(
+					[
+						A2(
+						$elm$html$Html$h2,
+						_List_Nil,
+						_List_fromArray(
+							[
+								$elm$html$Html$text('Exemples de code :')
+							])),
+						A2(
+						$elm$html$Html$pre,
+						_List_Nil,
+						_List_fromArray(
+							[
+								$elm$html$Html$text('[Repeat 360 [ Right 1, Forward 1]]\n[Forward 100, Repeat 4 [Forward 50, Left 90], Forward 100]\n[Repeat 36 [Right 10, Repeat 8 [Forward 25, Left 45]]]\n[Repeat 8 [Left 45, Repeat 6 [Repeat 90 [Forward 1, Left 2], Left 90]]]')
+							])),
+						A2(
+						$elm$html$Html$p,
+						_List_Nil,
+						_List_fromArray(
+							[
+								$elm$html$Html$text('Amélioration par rapport au sujet : Le dessin ne peut pas sortir du cadre (taille variable) et il occupe un maximum de place (avec une marge sinon c\'est moche).')
+							]))
+					]))
 			]));
 };
 var $author$project$Main$main = $elm$browser$Browser$sandbox(

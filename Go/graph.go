@@ -529,6 +529,20 @@ func WriteCommunityInFile(graph *Graph, filePath string) {
 	}
 }
 
+func SendCommunityTCP(graph *Graph, conn net.Conn) {
+	writer := bufio.NewWriter(conn)
+
+	for key, c := range graph.Communities {
+		if c != nil {
+			writer.WriteString("Community\t" + strconv.Itoa(key) + "\tVertices\t" + strconv.Itoa(len(c.Vertices)) + "\n")
+			for key2 := range c.Vertices {
+				writer.WriteString("Node\t" + strconv.Itoa(key2) + "\n")
+			}
+		}
+	}
+	writer.Flush()
+}
+
 func ParseCommunityFile(filePath string) []*Community {
 	file, ok := os.Open(filePath)
 	if ok != nil {
@@ -665,14 +679,14 @@ func handleConnection(conn net.Conn) {
 	defer pprof.StopCPUProfile()
 
 	//filePath := "com-dblp.ungraph.txt"
-	filePath := "com-amazon.ungraph.txt"
+	//filePath := "com-amazon.ungraph.txt"
 	//filePath := "com-youtube.ungraph.txt"
 	//filePath := "test_graph.txt"
 	//filePath := "test_graph copy.txt"
 	//filePath := "test_graph5.txt"
-	//graph := NewGraphFromTCP(conn)
-	graph := NewGraphFromFile(filePath)
-	precision := 0.0001
+	graph := NewGraphFromTCP(conn)
+	//graph := NewGraphFromFile(filePath)
+	precision := 0.001
 	max_index := 0
 	for key, vertex := range graph.Vertices {
 		vertex.CC = graph.ClusteringCoeficient(key)
@@ -723,7 +737,7 @@ func handleConnection(conn net.Conn) {
 	listWCC := make([]float64, 0)
 	listWCC = append(listWCC, WCC)
 	newWCC = 0
-	const numWorkers = 8
+	const numWorkers = 16
 	jobs := make(chan int, 2*numWorkers)
 	results := make(chan ResultBestMouvement, 2*numWorkers)
 	for w := 1; w <= numWorkers; w++ {
@@ -850,9 +864,10 @@ func handleConnection(conn net.Conn) {
 		if len(listWCC) > 10 {
 			listWCC = listWCC[1:]
 		}
-		WriteCommunityInFile(graph, "communities.txt")
-	}
+		//WriteCommunityInFile(graph, "communities.txt")*
 
+	}
+	SendCommunityTCP(graph, conn)
 	fmt.Println("Done in : ", time.Since(startTotalTime), " with ", numWorkers, " workers")
 }
 
